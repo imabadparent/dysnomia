@@ -27,12 +27,15 @@ pub fn init(allocator: std.mem.Allocator, token: []const u8) !Self {
 pub fn initConfig(allocator: std.mem.Allocator, config_path: []const u8) !Self {
     const config = try std.fs.cwd().readFileAlloc(allocator, config_path, 4096);
     defer allocator.free(config);
-    const parsed = try json.parseFromSlice(
+    const parsed = json.parseFromSlice(
         Config,
         allocator,
         config,
         .{ .allocate = .alloc_always },
-    );
+    ) catch |err| {
+        std.log.err("Error parsing config: {}\n", .{err});
+        return err;
+    };
     defer parsed.deinit();
 
     return init(allocator, parsed.value.token);
