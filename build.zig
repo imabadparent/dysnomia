@@ -11,6 +11,8 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    const websocket = b.dependency("websocket", .{ .optimize = optimize, .target = target }).module("websocket");
+    lib.root_module.addImport("websocket", websocket);
     const zigcord = b.addModule("zigcord", .{
         .optimize = optimize,
         .target = target,
