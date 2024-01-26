@@ -13,20 +13,15 @@ pub fn build(b: *std.Build) void {
     });
     const websocket = b.dependency("websocket", .{ .optimize = optimize, .target = target }).module("websocket");
     lib.root_module.addImport("websocket", websocket);
-    const zigcord = b.addModule("zigcord", .{
-        .optimize = optimize,
-        .target = target,
-        .root_source_file = .{ .path = "src/zigcord.zig" },
-    });
     b.installArtifact(lib);
 
     const exe = b.addExecutable(.{
-        .name = "zigcord",
+        .name = "ping",
         .root_source_file = .{ .path = "examples/ping.zig" },
         .target = target,
         .optimize = optimize,
     });
-    exe.root_module.addImport("zigcord", zigcord);
+    exe.root_module.addImport("zigcord", &lib.root_module);
     b.installArtifact(exe);
 
     const run_cmd = b.addRunArtifact(exe);
