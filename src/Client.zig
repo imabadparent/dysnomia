@@ -137,7 +137,7 @@ pub fn handle(self: *Client, msg: ws.Message) !void {
     const opcode: GatewayEvent.Opcode = @enumFromInt(g_event.op);
     switch (opcode) {
         .hello => {
-            const event = try json.parseFromValueLeaky(HelloEvent, allocator, g_event.d, options);
+            const event = json.parseFromValueLeaky(HelloEvent, allocator, g_event.d, options);
             try self._vtable.on_hello(self, event);
         },
         else => {},
@@ -193,9 +193,13 @@ fn sendIdentify(self: *Client) !void {
     };
     const event = GatewayEvent{
         .op = @intFromEnum(GatewayEvent.Opcode.identify),
-        .d = try json.Value.jsonParse(self._arena.allocator(), &id, .{}),
+        .d = .null,
     };
-    try self.send(event);
+    self._buf.pos = 0;
+    try json.fmt(id, .{}).format("{s}", .{}, self._buf.writer());
+    try json.stringify(event, .{}, self._buf.writer());
+    std.debug.print("buf -> {s}\n", .{self._buf.buf});
+    //try self.send(event);
 }
 
 fn hello(self: *Client, event: HelloEvent) !void {
