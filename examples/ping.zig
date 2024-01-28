@@ -14,5 +14,9 @@ pub fn main() !void {
     var client = try zigcord.Client.init(alloc, config.value, .{});
     defer client.deinit();
 
+    client.intents = .{
+        .message_content = true,
+    };
+
     try client.connect();
 }

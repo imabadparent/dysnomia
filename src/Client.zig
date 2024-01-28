@@ -9,8 +9,8 @@ const Client = @This();
 
 const Gateway = types.Gateway;
 const GatewayEvent = types.GatewayEvent;
-const HelloEvent = types.HelloEvent;
-const IdentifyEvent = types.IdentifyEvent;
+const HelloEvent = types.events.HelloEvent;
+const IdentifyEvent = types.events.IdentifyEvent;
 
 fn Buffer(comptime size: comptime_int) type {
     return struct {
@@ -68,6 +68,7 @@ pub const Context = struct {
 const base = "https://discord.com/api/v10/";
 
 token: []const u8,
+intents: types.Intents = .{},
 
 _arena: std.heap.ArenaAllocator,
 _buf: Buffer(4096) = .{},
@@ -123,29 +124,6 @@ fn getGateway(self: *Client) !Gateway {
     );
 }
 
-/// Internal use only
-/// Needs to be public for websocket.zig to use it
-pub fn handle(self: *Client, msg: ws.Message) !void {
-    if (msg.type != .text) return;
-    std.log.info("event received: {s}\n", .{msg.data});
-
-    const allocator = self._arena.allocator();
-    const g_event = try json.parseFromSliceLeaky(GatewayEvent, allocator, msg.data, .{});
-    self._seq = g_event.s;
-
-    const options = json.ParseOptions{ .ignore_unknown_fields = true };
-    const opcode: GatewayEvent.Opcode = @enumFromInt(g_event.op);
-    switch (opcode) {
-        .hello => {
-            const event = json.parseFromValueLeaky(HelloEvent, allocator, g_event.d, options);
-            try self._vtable.on_hello(self, event);
-        },
-        else => {},
-    }
-}
-
-pub fn close(_: *Client) void {}
-
 /// Connect to discord websocket and start listening for events
 pub fn connect(self: *Client) !void {
     if (self._wsclient) |_| return;
@@ -154,12 +132,14 @@ pub fn connect(self: *Client) !void {
     const allocator = self._arena.allocator();
 
     const host = gateway.url[6..];
-    std.debug.print("url -> {s}\n", .{host});
     self._wsclient = try ws.connect(
         allocator,
         host,
         443,
-        .{ .tls = true },
+        .{
+            .tls = true,
+            .handle_close = true,
+        },
     );
 
     const options = "/?v=10&encoding=json";
@@ -169,17 +149,49 @@ pub fn connect(self: *Client) !void {
     try self._wsclient.?.readLoop(self);
 }
 
+/// Internal use only
+/// Needs to be public for websocket.zig to use it
+pub fn handle(self: *Client, msg: ws.Message) !void {
+    if (msg.type == .close) {
+        try self.handleClose(msg);
+    }
+    if (msg.type != .text) return;
+
+    const allocator = self._arena.allocator();
+    const g_event = try json.parseFromSliceLeaky(GatewayEvent, allocator, msg.data, .{});
+    std.log.info(
+        "event received: {}\n",
+        .{@as(types.GatewayEvent.Opcode, @enumFromInt(g_event.op))},
+    );
+
+    self._seq = g_event.s;
+    try switch (g_event.d) {
+        .hello => |event| self._vtable.on_hello(self, event),
+        else => {},
+    };
+}
+
+pub fn close(_: *Client) void {}
+
+pub fn handleClose(self: *Client, msg: ws.Message) !void {
+    //const code: u16 = @as(u16, msg.data[1]) + (@as(u16, msg.data[0]) << 8);
+    const code = std.mem.readInt(u16, msg.data[0..2], .big);
+    std.debug.print("closed: {d}: {s}\n", .{ code, msg.data[2..] });
+
+    self.close();
+}
+
 inline fn send(self: *Client, event: GatewayEvent) !void {
     self._buf.pos = 0;
-    try json.stringify(event, .{}, self._buf.writer());
+    try json.stringify(event, .{ .emit_null_optional_fields = false }, self._buf.writer());
     std.debug.print("buf -> {s}\n", .{self._buf.buf});
-    try self._wsclient.?.writeText(&self._buf.buf);
+    try self._wsclient.?.writeText(self._buf.buf[0..self._buf.pos]);
 }
 
 fn sendHeartbeat(self: *Client) !void {
     const event = GatewayEvent{
         .op = @intFromEnum(GatewayEvent.Opcode.heartbeat),
-        .d = if (self._seq) |s| .{ .integer = s } else .null,
+        .d = .{ .heartbeat = self._seq },
     };
     try self.send(event);
 }
@@ -190,21 +202,18 @@ fn sendIdentify(self: *Client) !void {
         .properties = .{
             .os = &std.os.uname().sysname,
         },
+        .intents = @bitCast(self.intents),
     };
+
     const event = GatewayEvent{
         .op = @intFromEnum(GatewayEvent.Opcode.identify),
-        .d = .null,
+        .d = .{ .identify = id },
     };
-    self._buf.pos = 0;
-    try json.fmt(id, .{}).format("{s}", .{}, self._buf.writer());
-    try json.stringify(event, .{}, self._buf.writer());
-    std.debug.print("buf -> {s}\n", .{self._buf.buf});
-    //try self.send(event);
+    try self.send(event);
 }
 
 fn hello(self: *Client, event: HelloEvent) !void {
     _ = event;
-    std.debug.print("hello received\n", .{});
     try self.sendIdentify();
     //std.time.sleep(10 * std.time.ns_per_s);
 }
