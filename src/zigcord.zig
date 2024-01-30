@@ -1,9 +1,11 @@
 const std = @import("std");
 
 pub const Client = @import("Client.zig");
-pub usingnamespace @import("types.zig");
+const types = @import("types.zig");
 
-const zc = @This();
+pub usingnamespace types;
+
+const dys = @This();
 /// Will parse your config from a json file for you
 /// Allows you to not hardcode your token
 pub fn parseConfig(

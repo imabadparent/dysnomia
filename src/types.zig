@@ -1,18 +1,32 @@
 const std = @import("std");
 const json = std.json;
+const rest = @import("rest_types.zig");
+pub usingnamespace rest;
 pub const events = @import("event_types.zig");
 
 const Allocator = std.mem.Allocator;
 
-pub const Gateway = struct {
-    url: []const u8,
-    shards: u32,
-    session_start_limit: struct {
-        total: u32,
-        remaining: u32,
-        reset_after: u32,
-        max_concurrency: u32,
-    },
+const discord_epoch = 1_420_070_400_000;
+
+pub const Snowflake = packed struct(u64) {
+    /// milliseconds since or `discord_epoch`
+    timestamp: u42,
+    worker_id: u5,
+    process_id: u5,
+    /// incremented for every id generated on a process
+    increment: u12,
+
+    pub fn fromString(string: []const u8) !Snowflake {
+        const id = try std.fmt.parseInt(u64, string, 10);
+        return fromId(id);
+    }
+    pub inline fn fromId(id: u64) Snowflake {
+        return @bitCast(id);
+    }
+
+    pub fn toId(self: Snowflake) u64 {
+        return @bitCast(self);
+    }
 };
 
 pub const GatewayEvent = struct {
@@ -32,7 +46,7 @@ pub const GatewayEvent = struct {
     op: i64,
     d: events.Event,
     s: ?i64 = null,
-    t: ?[]const u8 = null,
+    t: ?[]u8 = null,
 
     pub fn jsonParse(
         alloc: Allocator,
@@ -79,6 +93,33 @@ pub const GatewayEvent = struct {
         if (data == .null and op != .heartbeak_ack) return error.UnexpectedToken;
 
         result.d = switch (op) {
+            .dispatch => blk: {
+                if (result.t == null) return error.MissingField;
+                var event_str = result.t.?;
+                for (event_str, 0..) |c, i| {
+                    if (c == '_') continue;
+                    if (c >= 'A' and c <= 'Z') event_str[i] += 'a' - 'A';
+                }
+                const tag_type = @typeInfo(events.Event).Union.tag_type.?;
+                const event = std.meta.stringToEnum(tag_type, event_str);
+                if (event) |e| {
+                    switch (e) {
+                        .ready => {
+                            const value = try json.innerParseFromValue(
+                                events.ReadyEvent,
+                                alloc,
+                                data,
+                                .{ .ignore_unknown_fields = true },
+                            );
+                            std.debug.print("value -> {}\n", .{value});
+                            break :blk events.Event{ .ready = value };
+                        },
+                        else => break :blk .unknown,
+                    }
+                } else {
+                    break :blk .unknown;
+                }
+            },
             .hello => blk: {
                 const value = try json.innerParseFromValue(
                     events.HelloEvent,
