@@ -112,6 +112,7 @@ pub const UpdatePresenceEvent = struct {
 
 pub const ReadyEvent = struct {
     v: i64,
+    user: types.User,
     guilds: []types.UnavailableGuild,
     session_id: []const u8,
     resume_gateway_url: []const u8,

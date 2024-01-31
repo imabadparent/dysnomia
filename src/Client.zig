@@ -149,7 +149,6 @@ pub fn handle(self: *Client, msg: ws.Message) !void {
     if (msg.type != .text) return error.UnexpectedPayload;
 
     const allocator = self._arena.allocator();
-    std.debug.print("data -> {s}\n", .{msg.data});
     const g_event = json.parseFromSliceLeaky(GatewayEvent, allocator, msg.data, .{}) catch |err| {
         std.log.err("error: {}", .{err});
         return err;
@@ -166,14 +165,7 @@ pub fn handle(self: *Client, msg: ws.Message) !void {
 
 /// Needs to be here for websocket.zig
 pub fn close(self: *Client) void {
-    self.sendClose(.{
-        .code = .protocol_error,
-        .reconnect = false,
-        .reason = "",
-    }) catch {
-        std.log.err("failed to close the websocket, panicking", .{});
-        @panic("failed to clsoe the websocket, panicking");
-    };
+    self._sent_close = true;
 }
 
 fn processEvent(self: *Client, event: types.events.Event) !void {
@@ -201,14 +193,14 @@ fn eventLoop(self: *Client) !void {
     var beats: usize = 0;
     var deadline: ?i64 = null;
 
-    while (true) {
+    while (!self._sent_close) {
         while (self._events.popOrNull()) |event| {
             self.processEvent(event) catch |err| {
                 std.log.err("closing because of error: {any}\n", .{err});
                 if (!self._sent_close) try self.sendClose(.{
                     .code = .protocol_error,
                     .reconnect = false,
-                    .reason = "",
+                    .reason = @errorName(err),
                 });
                 return err;
             };
@@ -314,7 +306,7 @@ pub fn getCurrentUser(self: *Client) !types.User {
     return try self.get(types.User, "/users/@me");
 }
 
-pub fn getUser(self: *Client, id: types.Snowflake) !types.User {
+pub fn getUser(self: *Client, id: u64) !types.User {
     const endpoint = try std.fmt.allocPrint(self._arena.allocator(), "/users/{d}", .{id.toId()});
 
     return try self.get(types.User, endpoint);

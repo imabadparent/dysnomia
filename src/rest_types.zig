@@ -15,7 +15,7 @@ pub const Gateway = struct {
 };
 
 pub const User = struct {
-    id: i64,
+    id: types.Snowflake,
     username: []const u8,
     discriminator: []const u8,
     global_name: ?[]const u8,

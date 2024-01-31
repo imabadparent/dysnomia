@@ -27,6 +27,31 @@ pub const Snowflake = packed struct(u64) {
     pub fn toId(self: Snowflake) u64 {
         return @bitCast(self);
     }
+
+    pub fn jsonParse(
+        alloc: Allocator,
+        source: anytype,
+        options: json.ParseOptions,
+    ) json.ParseError(@TypeOf(source.*))!Snowflake {
+        const id = try json.innerParse(u64, alloc, source, options);
+        return fromId(id);
+    }
+
+    pub fn jsonParseFromValue(
+        _: Allocator,
+        source: json.Value,
+        _: json.ParseOptions,
+    ) !Snowflake {
+        return switch (source) {
+            .integer => fromId(@intCast(source.integer)),
+            .string, .number_string => fromId(try std.fmt.parseInt(u64, source.string, 10)),
+            else => error.UnexpectedToken,
+        };
+    }
+
+    pub fn jsonStringify(self: Snowflake, writer: anytype) !void {
+        try writer.print("\"{d}\"", .{self.toId()});
+    }
 };
 
 pub const GatewayEvent = struct {
@@ -100,24 +125,21 @@ pub const GatewayEvent = struct {
                     if (c == '_') continue;
                     if (c >= 'A' and c <= 'Z') event_str[i] += 'a' - 'A';
                 }
+
                 const tag_type = @typeInfo(events.Event).Union.tag_type.?;
                 const event = std.meta.stringToEnum(tag_type, event_str);
-                if (event) |e| {
-                    switch (e) {
-                        .ready => {
-                            const value = try json.innerParseFromValue(
-                                events.ReadyEvent,
-                                alloc,
-                                data,
-                                .{ .ignore_unknown_fields = true },
-                            );
-                            std.debug.print("value -> {}\n", .{value});
-                            break :blk events.Event{ .ready = value };
-                        },
-                        else => break :blk .unknown,
-                    }
-                } else {
-                    break :blk .unknown;
+                if (event == null) break :blk .unknown;
+                switch (event.?) {
+                    .ready => {
+                        const value = try json.innerParseFromValue(
+                            events.ReadyEvent,
+                            alloc,
+                            data,
+                            .{ .ignore_unknown_fields = true },
+                        );
+                        break :blk events.Event{ .ready = value };
+                    },
+                    else => break :blk .unknown,
                 }
             },
             .hello => blk: {
