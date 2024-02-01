@@ -1,14 +1,10 @@
 const std = @import("std");
-const dys = @import("zigcord");
+const dys = @import("dysnomia");
 
 const config_path = "examples/config.json";
 
-fn onHello(client: *dys.Client, _: dys.events.HelloEvent) !void {
-    const user = client.getCurrentUser() catch |err| {
-        std.log.err("could not get current user: {}", .{err});
-        return;
-    };
-    std.debug.print("logged in as: {s}\n", .{user.username});
+fn onReady(_: *dys.Client, event: dys.events.ReadyEvent) !void {
+    std.log.info("logged in as: {s}", .{event.user.username});
 }
 
 pub fn main() !void {
@@ -24,10 +20,11 @@ pub fn main() !void {
 
     client.intents = .{
         .message_content = true,
+        .guild_messages = true,
     };
 
     client.callbacks = .{
-        .on_hello = &onHello,
+        .on_ready = &onReady,
     };
 
     try client.connect();

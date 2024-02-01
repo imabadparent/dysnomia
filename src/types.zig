@@ -1,8 +1,9 @@
 const std = @import("std");
 const json = std.json;
 const rest = @import("rest_types.zig");
-pub usingnamespace rest;
 pub const events = @import("event_types.zig");
+
+pub usingnamespace rest;
 
 const Allocator = std.mem.Allocator;
 
@@ -24,7 +25,7 @@ pub const Snowflake = packed struct(u64) {
         return @bitCast(id);
     }
 
-    pub fn toId(self: Snowflake) u64 {
+    pub inline fn toId(self: Snowflake) u64 {
         return @bitCast(self);
     }
 
@@ -66,7 +67,7 @@ pub const GatewayEvent = struct {
         request_guild_members = 8,
         invalid_session = 9,
         hello = 10,
-        heartbeak_ack = 11,
+        heartbeat_ack = 11,
     };
     op: i64,
     d: events.Event,
@@ -115,7 +116,7 @@ pub const GatewayEvent = struct {
             }
         }
         const op: Opcode = @enumFromInt(result.op);
-        if (data == .null and op != .heartbeak_ack) return error.UnexpectedToken;
+        if (data == .null and op != .heartbeat_ack) return error.UnexpectedToken;
 
         result.d = switch (op) {
             .dispatch => blk: {
@@ -142,6 +143,7 @@ pub const GatewayEvent = struct {
                     else => break :blk .unknown,
                 }
             },
+            .heartbeat_ack => .heartbeat_ack,
             .hello => blk: {
                 const value = try json.innerParseFromValue(
                     events.HelloEvent,
@@ -195,7 +197,8 @@ pub const Activity = struct {
     }
 };
 
-pub const Intents = packed struct(i64) {
+/// Gateway intents, send to discord as a bitfield, for more info, see official discord docs
+pub const Intents = packed struct(u64) {
     guilds: bool = false,
     /// priveledged
     guild_members: bool = false,
@@ -205,6 +208,7 @@ pub const Intents = packed struct(i64) {
     guild_webhooks: bool = false,
     guild_invites: bool = false,
     /// priveledged
+    guild_voice_states: bool = false,
     guild_presences: bool = false,
     guild_messages: bool = false,
     guild_message_reactions: bool = false,
@@ -215,8 +219,9 @@ pub const Intents = packed struct(i64) {
     /// priveledged
     message_content: bool = false,
     guild_scheduled_events: bool = false,
+    _padding1: u3 = 0,
     auto_moderation_configuration: bool = false,
     auto_moderation_execution: bool = false,
 
-    _padding: u46 = 0,
+    _padding2: u42 = 0,
 };

@@ -6,8 +6,8 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     const lib = b.addStaticLibrary(.{
-        .name = "zigcord",
-        .root_source_file = .{ .path = "src/zigcord.zig" },
+        .name = "dysnomia",
+        .root_source_file = .{ .path = "src/dysnomia.zig" },
         .target = target,
         .optimize = optimize,
     });
@@ -21,7 +21,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    exe.root_module.addImport("zigcord", &lib.root_module);
+    exe.root_module.addImport("dysnomia", &lib.root_module);
     b.installArtifact(exe);
 
     const run_cmd = b.addRunArtifact(exe);
@@ -36,7 +36,7 @@ pub fn build(b: *std.Build) void {
     run_step.dependOn(&run_cmd.step);
 
     const lib_unit_tests = b.addTest(.{
-        .root_source_file = .{ .path = "src/zigcord.zig" },
+        .root_source_file = .{ .path = "src/dysnomia.zig" },
         .target = target,
         .optimize = optimize,
     });

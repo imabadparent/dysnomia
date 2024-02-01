@@ -1,18 +1,12 @@
 const std = @import("std");
 const ws = @import("websocket");
-const types = @import("types.zig");
-const zigcord = @import("zigcord.zig");
+const dys = @import("dysnomia.zig");
 const http = std.http;
 const json = std.json;
 
 const Client = @This();
 
-const EventList = std.ArrayList(types.events.Event);
-
-const Gateway = types.Gateway;
-const GatewayEvent = types.GatewayEvent;
-const HelloEvent = types.events.HelloEvent;
-const IdentifyEvent = types.events.IdentifyEvent;
+const EventList = std.ArrayList(dys.events.Event);
 
 fn Buffer(comptime size: comptime_int) type {
     return struct {
@@ -44,37 +38,36 @@ fn Buffer(comptime size: comptime_int) type {
 pub fn Callback(comptime T: type) type {
     return *const fn (self: *Client, event: T) anyerror!void;
 }
-/// Contains the callbacks for gateway events
-const VTable = struct {
-    on_hello: ?Callback(HelloEvent) = null,
-};
 
-/// Config for the bot, usually parsed from json
-/// fields:
-///     bot: (optional) whether to connect as a bot (default) or a normal user. Note: connecting as
-///     a normal user outside of the official discord app is against ToS. Use at your own risk
-///     token: the token to use to connect to discord
+/// Config for the bot, can be parsed from json using `dysnomia.parseConfig("path/to/config");`
 pub const Config = struct {
+    /// Optional, whether to connect as a bot (default) or not. Note: connecting with a normal user
+    /// token is generally against Discord ToS. Use at your own risk.
     bot: ?bool = true,
+    /// The token used to connect to discord.
     token: []const u8,
 };
 
 const base = "https://discord.com/api/v10/";
 
-token: []const u8,
-intents: types.Intents = .{},
-callbacks: VTable,
+/// Gateway intents, tells discord what events we want to listen to
+intents: dys.Intents = .{},
+callbacks: struct {
+    /// Called when the client recieves the `Ready` event
+    on_ready: ?Callback(dys.events.ReadyEvent) = null,
+} = .{},
 
 _arena: std.heap.ArenaAllocator,
+_token: []const u8,
 _httpclient: std.http.Client,
 _headers: std.http.Headers,
 _wsclient: ?ws.Client = null,
 _sent_close: bool = false,
-_buf: Buffer(4096) = .{},
 
 /// stack of websocket events
 _events: EventList,
 _heartbeat_interval: ?i64 = null,
+_awaiting_ack: bool = false,
 _seq: ?i64 = null,
 
 /// Create the bot, run the `connect()` method to start
@@ -87,13 +80,13 @@ pub fn init(allocator: std.mem.Allocator, config: Config) !Client {
     else
         try std.fmt.allocPrint(arena.allocator(), "Bearer {s}", .{config.token});
 
-    var headers = http.Headers.init(allocator);
+    var headers = http.Headers.init(arena.allocator());
     try headers.append("Authorization", tok);
 
     return Client{
-        .token = tok,
         .callbacks = .{},
         ._arena = arena,
+        ._token = tok,
         ._httpclient = http.Client{ .allocator = allocator },
         ._headers = headers,
         ._events = EventList.init(allocator),
@@ -107,7 +100,7 @@ pub fn deinit(self: *Client) void {
     self._arena.deinit();
 }
 
-/// Connect to discord websocket and start listening for events
+/// Connect to discord gateway and start listening for events
 pub fn connect(self: *Client) !void {
     if (self._wsclient) |_| return;
     const gateway = try self.getGateway();
@@ -133,7 +126,7 @@ pub fn connect(self: *Client) !void {
 }
 
 /// Internal use only
-/// Needs to be public for websocket.zig to use it
+/// Needs to be public for websocket.zig
 pub fn handle(self: *Client, msg: ws.Message) !void {
     if (msg.type == .close) {
         if (msg.data.len < 2) return error.NoCloseCode;
@@ -149,35 +142,52 @@ pub fn handle(self: *Client, msg: ws.Message) !void {
     if (msg.type != .text) return error.UnexpectedPayload;
 
     const allocator = self._arena.allocator();
-    const g_event = json.parseFromSliceLeaky(GatewayEvent, allocator, msg.data, .{}) catch |err| {
-        std.log.err("error: {}", .{err});
+    const g_event = json.parseFromSliceLeaky(
+        dys.GatewayEvent,
+        allocator,
+        msg.data,
+        .{},
+    ) catch |err| {
+        std.log.err("error handling event: {}", .{err});
         return err;
     };
 
-    std.log.info(
+    std.log.debug(
         "received event: {s}",
-        .{@tagName(@as(types.GatewayEvent.Opcode, @enumFromInt(g_event.op)))},
+        .{@tagName(g_event.d)},
     );
     self._seq = g_event.s;
 
     try self._events.append(g_event.d);
 }
 
-/// Needs to be here for websocket.zig
+/// Internal use only
+/// Needs to be public for websocket.zig
 pub fn close(self: *Client) void {
     self._sent_close = true;
 }
 
-fn processEvent(self: *Client, event: types.events.Event) !void {
+fn processEvent(self: *Client, event: dys.events.Event) !void {
     switch (event) {
         .close => |e| {
             if (!self._sent_close) return self.sendClose(e) else return error.Closed;
         },
 
+        .heartbeat => {
+            try self.sendHeartbeat();
+        },
+        .heartbeat_ack => {
+            self._awaiting_ack = false;
+        },
         .hello => |e| {
-            self._heartbeat_interval = try self.hello(e);
-            if (self.callbacks.on_hello) |onHello| {
-                try onHello(self, e);
+            self._heartbeat_interval = e.heartbeat_interval;
+            try self.sendIdentify();
+        },
+        .ready => |e| {
+            if (self.callbacks.on_ready) |on_ready| {
+                on_ready(self, e) catch |err| {
+                    std.log.err("on_ready callback failed with error: {}", .{err});
+                };
             }
         },
 
@@ -185,7 +195,7 @@ fn processEvent(self: *Client, event: types.events.Event) !void {
     }
 }
 
-/// main event loop, when this returns the program should exit
+/// main event loop, when this returns the gateway has been closed
 fn eventLoop(self: *Client) !void {
     const thread = try self._wsclient.?.readLoopInNewThread(self);
     thread.detach();
@@ -196,7 +206,7 @@ fn eventLoop(self: *Client) !void {
     while (!self._sent_close) {
         while (self._events.popOrNull()) |event| {
             self.processEvent(event) catch |err| {
-                std.log.err("closing because of error: {any}\n", .{err});
+                std.log.err("closing because of error: {}", .{err});
                 if (!self._sent_close) try self.sendClose(.{
                     .code = .protocol_error,
                     .reconnect = false,
@@ -204,6 +214,14 @@ fn eventLoop(self: *Client) !void {
                 });
                 return err;
             };
+            if (self._awaiting_ack) {
+                std.log.err("did not receive heartbeat_ack", .{});
+                try self.sendClose(.{
+                    .code = .protocol_error,
+                    .reconnect = false,
+                    .reason = "Missed heartbeat_ack",
+                });
+            }
         }
 
         if (self._heartbeat_interval) |interval| {
@@ -220,7 +238,7 @@ fn eventLoop(self: *Client) !void {
     }
 }
 
-fn sendClose(self: *Client, event: types.events.CloseEvent) !void {
+fn sendClose(self: *Client, event: dys.events.CloseEvent) !void {
     std.log.warn("gateway closed: {s}", .{event.reason});
     self._sent_close = true;
     const code_int: u16 = if (@intFromEnum(event.code) <= std.math.maxInt(u16))
@@ -235,24 +253,25 @@ fn sendClose(self: *Client, event: types.events.CloseEvent) !void {
     }
 }
 
-inline fn send(self: *Client, event: GatewayEvent) !void {
+inline fn send(self: *Client, event: dys.GatewayEvent) !void {
     std.debug.assert(self._wsclient != null);
 
-    self._buf.pos = 0;
-    try json.stringify(event, .{ .emit_null_optional_fields = false }, self._buf.writer());
-    try self._wsclient.?.writeText(self._buf.buf[0..self._buf.pos]);
+    var buf = Buffer(4096){};
+    try json.stringify(event, .{ .emit_null_optional_fields = false }, buf.writer());
+    try self._wsclient.?.writeText(buf.buf[0..buf.pos]);
 }
 
 fn sendHeartbeat(self: *Client) !void {
-    const event = GatewayEvent{
-        .op = @intFromEnum(GatewayEvent.Opcode.heartbeat),
+    const event = dys.GatewayEvent{
+        .op = @intFromEnum(dys.GatewayEvent.Opcode.heartbeat),
         .d = .{ .heartbeat = self._seq },
     };
     try self.send(event);
+    self._awaiting_ack = true;
 }
 
 fn sendIdentify(self: *Client) !void {
-    const id = IdentifyEvent{
+    const id = dys.events.IdentifyEvent{
         .token = self.token,
         .properties = .{
             .os = &std.os.uname().sysname,
@@ -260,16 +279,11 @@ fn sendIdentify(self: *Client) !void {
         .intents = @bitCast(self.intents),
     };
 
-    const event = GatewayEvent{
-        .op = @intFromEnum(GatewayEvent.Opcode.identify),
+    const event = dys.GatewayEvent{
+        .op = @intFromEnum(dys.GatewayEvent.Opcode.identify),
         .d = .{ .identify = id },
     };
     try self.send(event);
-}
-
-fn hello(self: *Client, event: HelloEvent) !i64 {
-    try self.sendIdentify();
-    return event.heartbeat_interval;
 }
 
 // REST methods
@@ -298,16 +312,16 @@ inline fn get(self: *Client, comptime T: type, endpoint: []const u8) !T {
     );
 }
 
-fn getGateway(self: *Client) !Gateway {
-    return self.get(types.Gateway, "/gateway/bot");
+fn getGateway(self: *Client) !dys.Gateway {
+    return self.get(dys.Gateway, "/gateway/bot");
 }
 
-pub fn getCurrentUser(self: *Client) !types.User {
-    return try self.get(types.User, "/users/@me");
+pub fn getCurrentUser(self: *Client) !dys.User {
+    return try self.get(dys.User, "/users/@me");
 }
 
-pub fn getUser(self: *Client, id: u64) !types.User {
+pub fn getUser(self: *Client, id: u64) !dys.User {
     const endpoint = try std.fmt.allocPrint(self._arena.allocator(), "/users/{d}", .{id.toId()});
 
-    return try self.get(types.User, endpoint);
+    return try self.get(dys.User, endpoint);
 }
