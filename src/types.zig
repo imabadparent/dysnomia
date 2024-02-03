@@ -7,10 +7,14 @@ pub usingnamespace rest;
 
 const Allocator = std.mem.Allocator;
 
-const discord_epoch = 1_420_070_400_000;
+/// The first second of 2015, which discord uses for timestamps
+pub const discord_epoch = 1_420_070_400_000;
 
+/// Discord uses these for identification. The packed struct represents what each
+/// part of a `u64` represents, for our convenience. When sent to or received from
+/// discord, a snowflake is represented as a `u64`.
 pub const Snowflake = packed struct(u64) {
-    /// milliseconds since or `discord_epoch`
+    /// milliseconds since 2015 or `discord_epoch`
     timestamp: u42,
     worker_id: u5,
     process_id: u5,
@@ -55,6 +59,99 @@ pub const Snowflake = packed struct(u64) {
     }
 };
 
+pub const Timestamp = struct {
+    year: u32,
+    month: u8,
+    day: u8,
+
+    hour: u8,
+    minute: u8,
+    second: u8,
+    microsecond: u32,
+
+    pub fn fromString(str: []const u8) !Timestamp {
+        const t_sep = std.mem.indexOfScalar(u8, str, 'T') orelse return error.BadFormat;
+        const s_sep = std.mem.indexOfScalar(u8, str, '.') orelse return error.BadFormat;
+        const tz_sep = std.mem.indexOfScalar(u8, str, '+') orelse return error.BadFormat;
+
+        var date_it = std.mem.splitScalar(u8, str[0..t_sep], '-');
+        const year_str = date_it.next() orelse return error.BadFormat;
+        const month_str = date_it.next() orelse return error.BadFormat;
+        const day_str = date_it.next() orelse return error.BadFormat;
+
+        var time_it = std.mem.splitScalar(u8, str[t_sep + 1 .. s_sep], ':');
+        const hour_str = time_it.next() orelse return error.BadFormat;
+        const minute_str = time_it.next() orelse return error.BadFormat;
+        const second_str = time_it.next() orelse return error.BadFormat;
+        const micro_str = str[s_sep + 1 .. tz_sep];
+
+        return Timestamp{
+            .year = try std.fmt.parseInt(u32, year_str, 10),
+            .month = try std.fmt.parseInt(u8, month_str, 10),
+            .day = try std.fmt.parseInt(u8, day_str, 10),
+            .hour = try std.fmt.parseInt(u8, hour_str, 10),
+            .minute = try std.fmt.parseInt(u8, minute_str, 10),
+            .second = try std.fmt.parseInt(u8, second_str, 10),
+            .microsecond = try std.fmt.parseInt(u32, micro_str, 10) * 10,
+        };
+    }
+
+    pub fn toString(self: Timestamp) ![]const u8 {
+        var buf: [32]u8 = .{0} ** 32;
+        return try std.fmt.bufPrint(
+            &buf,
+            "{d:0>4}-{d:0>2}-{d:0>2}T{d:0>2}:{d:0>2}:{d:0>2}.{d:0>6}+00:00",
+            .{
+                self.year,
+                self.month,
+                self.day,
+                self.hour,
+                self.minute,
+                self.second,
+                self.microsecond / 10,
+            },
+        );
+    }
+
+    pub fn jsonParse(
+        alloc: Allocator,
+        source: anytype,
+        options: json.ParseOptions,
+    ) json.ParseError(@TypeOf(source.*))!Timestamp {
+        const str = try json.innerParse([]const u8, alloc, source, options);
+        return fromString(str) catch error.UnexpectedToken;
+    }
+
+    pub fn jsonParseFromValue(
+        _: Allocator,
+        source: json.Value,
+        _: json.ParseOptions,
+    ) !Timestamp {
+        return switch (source) {
+            .string => |str| fromString(str) catch error.UnexpectedToken,
+            else => error.UnexpectedToken,
+        };
+    }
+
+    pub fn jsonStringify(self: Timestamp, writer: anytype) !void {
+        try writer.print("\"{s}\"", .{self.toString() catch ""});
+    }
+};
+
+test "Timestamp.fromString" {
+    const timestamp = try Timestamp.fromString("2021-08-23T04:20:01.100000+00:00");
+    try std.testing.expect(timestamp.year == 2021);
+    try std.testing.expect(timestamp.month == 8);
+    try std.testing.expect(timestamp.day == 23);
+    try std.testing.expect(timestamp.hour == 4);
+    try std.testing.expect(timestamp.minute == 20);
+    try std.testing.expect(timestamp.second == 1);
+    try std.testing.expect(timestamp.microsecond == 1000000);
+}
+
+/// Events received from the gateway will always follow this format, with `d`
+/// being the payload which is parsed into an `Event` union with the active
+/// field coresponding to the event type
 pub const GatewayEvent = struct {
     pub const Opcode = enum(i64) {
         dispatch = 0,
@@ -119,6 +216,7 @@ pub const GatewayEvent = struct {
         if (data == .null and op != .heartbeat_ack) return error.UnexpectedToken;
 
         result.d = switch (op) {
+            // this is what most events are
             .dispatch => blk: {
                 if (result.t == null) return error.MissingField;
                 var event_str = result.t.?;
@@ -133,12 +231,21 @@ pub const GatewayEvent = struct {
                 switch (event.?) {
                     .ready => {
                         const value = try json.innerParseFromValue(
-                            events.ReadyEvent,
+                            events.Ready,
                             alloc,
                             data,
                             .{ .ignore_unknown_fields = true },
                         );
                         break :blk events.Event{ .ready = value };
+                    },
+                    .message_create => {
+                        const value = try json.innerParseFromValue(
+                            events.MessageCreate,
+                            alloc,
+                            data,
+                            .{ .ignore_unknown_fields = true },
+                        );
+                        break :blk events.Event{ .message_create = value };
                     },
                     else => break :blk .unknown,
                 }
@@ -146,7 +253,7 @@ pub const GatewayEvent = struct {
             .heartbeat_ack => .heartbeat_ack,
             .hello => blk: {
                 const value = try json.innerParseFromValue(
-                    events.HelloEvent,
+                    events.Hello,
                     alloc,
                     data,
                     .{ .ignore_unknown_fields = true },
@@ -155,7 +262,7 @@ pub const GatewayEvent = struct {
             },
             .identify => blk: {
                 const value = try json.innerParseFromValue(
-                    events.IdentifyEvent,
+                    events.Identify,
                     alloc,
                     data,
                     .{ .ignore_unknown_fields = true },
@@ -197,7 +304,7 @@ pub const Activity = struct {
     }
 };
 
-/// Gateway intents, send to discord as a bitfield, for more info, see official discord docs
+/// Gateway intents, send to discord as a bitfield
 pub const Intents = packed struct(u64) {
     guilds: bool = false,
     /// priveledged
@@ -219,6 +326,7 @@ pub const Intents = packed struct(u64) {
     /// priveledged
     message_content: bool = false,
     guild_scheduled_events: bool = false,
+    /// discord skips a few bits here, so we do too
     _padding1: u3 = 0,
     auto_moderation_configuration: bool = false,
     auto_moderation_execution: bool = false,

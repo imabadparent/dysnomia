@@ -3,8 +3,15 @@ const dys = @import("dysnomia");
 
 const config_path = "examples/config.json";
 
-fn onReady(_: *dys.Client, event: dys.events.ReadyEvent) !void {
+fn onReady(_: *dys.Client, event: dys.events.Ready) !void {
     std.log.info("logged in as: {s}", .{event.user.username});
+}
+
+fn onMessageCreate(self: *dys.Client, event: dys.events.MessageCreate) !void {
+    _ = self;
+    if (event.message.author.bot) return;
+
+    std.debug.print("message received from: {s}\n", .{event.message.author.username});
 }
 
 pub fn main() !void {
@@ -25,6 +32,7 @@ pub fn main() !void {
 
     client.callbacks = .{
         .on_ready = &onReady,
+        .on_message_create = &onMessageCreate,
     };
 
     try client.connect();

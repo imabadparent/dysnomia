@@ -14,6 +14,35 @@ pub const Gateway = struct {
     },
 };
 
+/// [Discord message](https://discord.com/developers/docs/resources/channel#message-object)
+pub const Message = struct {
+    id: types.Snowflake,
+    channel_id: types.Snowflake,
+    author: User,
+    content: []const u8,
+    timestamp: types.Timestamp,
+    edited_timestamp: ?types.Timestamp,
+    tts: bool,
+    mention_everyone: bool,
+    mentions: []User,
+    mention_roles: []types.Snowflake,
+    // TODO: mention_channels: []ChannelMention,
+    // TODO: attachments: []attachments,
+    // TODO: embeds: []Embed,
+    // TODO: reactions: []Reaction,
+    // TODO: nonce: Nonce,
+    pinned: bool,
+    webhook_id: ?types.Snowflake = null,
+    type: u64, // NOTE: Change to enum?
+
+    // FIX: finish the rest of this struct
+
+    /// Only present in messages recieved from the gateway
+    guild_id: ?types.Snowflake = null,
+    //// Only present in messages recieved from the gateway
+    member: ?types.GuildMember = null,
+};
+
 pub const User = struct {
     id: types.Snowflake,
     username: []const u8,
@@ -32,6 +61,23 @@ pub const User = struct {
     premium_type: i64 = 0,
     public_flags: i64 = 0,
     avatar_decorations: ?[]const u8 = null,
+    //// Only a valid value in mentions from messages received from the gateway
+    member: ?GuildMember = null,
+};
+
+pub const GuildMember = struct {
+    user: ?*User = null,
+    nick: ?[]const u8 = "",
+    avatar: ?[]const u8 = "",
+    roles: []types.Snowflake,
+    joined_at: types.Timestamp,
+    premium_since: ?types.Timestamp = null,
+    deaf: bool,
+    mute: bool,
+    flags: u64, // TODO: make this a packed struct
+    pending: bool = false,
+    permissions: []const u8 = "",
+    communication_disabled_until: ?types.Timestamp = null,
 };
 
 pub const UnavailableGuild = struct {

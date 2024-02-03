@@ -54,7 +54,8 @@ const base = "https://discord.com/api/v10/";
 intents: dys.Intents = .{},
 callbacks: struct {
     /// Called when the client recieves the `Ready` event
-    on_ready: ?Callback(dys.events.ReadyEvent) = null,
+    on_ready: ?Callback(dys.events.Ready) = null,
+    on_message_create: ?Callback(dys.events.MessageCreate) = null,
 } = .{},
 
 _arena: std.heap.ArenaAllocator,
@@ -95,7 +96,6 @@ pub fn init(allocator: std.mem.Allocator, config: Config) !Client {
 
 pub fn deinit(self: *Client) void {
     self._httpclient.deinit();
-    self._headers.deinit();
     self._events.deinit();
     self._arena.deinit();
 }
@@ -190,6 +190,13 @@ fn processEvent(self: *Client, event: dys.events.Event) !void {
                 };
             }
         },
+        .message_create => |e| {
+            if (self.callbacks.on_message_create) |on_message_create| {
+                on_message_create(self, e) catch |err| {
+                    std.log.err("on_message_create callback failed with error: {}", .{err});
+                };
+            }
+        },
 
         else => {},
     }
@@ -238,7 +245,7 @@ fn eventLoop(self: *Client) !void {
     }
 }
 
-fn sendClose(self: *Client, event: dys.events.CloseEvent) !void {
+fn sendClose(self: *Client, event: dys.events.Close) !void {
     std.log.warn("gateway closed: {s}", .{event.reason});
     self._sent_close = true;
     const code_int: u16 = if (@intFromEnum(event.code) <= std.math.maxInt(u16))
@@ -271,8 +278,8 @@ fn sendHeartbeat(self: *Client) !void {
 }
 
 fn sendIdentify(self: *Client) !void {
-    const id = dys.events.IdentifyEvent{
-        .token = self.token,
+    const id = dys.events.Identify{
+        .token = self._token,
         .properties = .{
             .os = &std.os.uname().sysname,
         },

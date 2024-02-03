@@ -27,3 +27,7 @@ pub fn parseConfig(
 
     return parsed;
 }
+
+test {
+    _ = @import("types.zig");
+}

@@ -2,22 +2,24 @@ const std = @import("std");
 const json = std.json;
 const types = @import("types.zig");
 
-const Activity = types.Activity;
+const Allocator = std.mem.Allocator;
 
 pub const Event = union(enum) {
     unknown,
     // recieve events
     heartbeat_ack,
-    close: CloseEvent,
-    hello: HelloEvent,
+    close: Close,
+    hello: Hello,
 
     // send events
     heartbeat: ?i64,
-    identify: IdentifyEvent,
-    update_presence: UpdatePresenceEvent,
+    identify: Identify,
+    update_presence: UpdatePresence,
 
     // receive events
-    ready: ReadyEvent,
+    ready: Ready,
+
+    message_create: MessageCreate,
 
     pub fn jsonStringify(self: Event, writer: anytype) !void {
         switch (self) {
@@ -33,7 +35,7 @@ pub const Event = union(enum) {
     }
 };
 
-pub const CloseEvent = struct {
+pub const Close = struct {
     const Code = enum(i64) {
         // rfc standard defined
         normal = 1000,
@@ -75,11 +77,11 @@ pub const CloseEvent = struct {
 
 // Send Events
 
-pub const HelloEvent = struct {
+pub const Hello = struct {
     heartbeat_interval: i64,
 };
 
-pub const IdentifyEvent = struct {
+pub const Identify = struct {
     token: []const u8,
     properties: struct {
         os: []const u8,
@@ -89,15 +91,15 @@ pub const IdentifyEvent = struct {
     compress: ?bool = false,
     large_threshold: ?i64 = 50,
     shard: ?[2]i64 = null,
-    presence: ?UpdatePresenceEvent = null,
+    presence: ?UpdatePresence = null,
     intents: i64 = 0,
 };
 
 /// this event is sent by the bot
 /// different to PresenceUpdateEvent, which is sent by discord
-pub const UpdatePresenceEvent = struct {
+pub const UpdatePresence = struct {
     since: ?i64 = null,
-    activies: []Activity = &.{},
+    activies: []types.Activity = &.{},
     status: enum {
         online,
         dnd,
@@ -110,7 +112,7 @@ pub const UpdatePresenceEvent = struct {
 
 // Receive Events
 
-pub const ReadyEvent = struct {
+pub const Ready = struct {
     v: i64,
     user: types.User,
     guilds: []types.UnavailableGuild,
@@ -118,4 +120,35 @@ pub const ReadyEvent = struct {
     resume_gateway_url: []const u8,
     shard: [2]i64 = .{ 0, 0 },
     application: types.PartialApplication,
+};
+
+pub const MessageCreate = struct {
+    message: types.Message,
+
+    pub fn jsonParse(
+        alloc: Allocator,
+        source: anytype,
+        options: json.ParseOptions,
+    ) json.ParseError(@TypeOf(source.*))!MessageCreate {
+        const message = try json.innerParse(types.Message, alloc, source, options);
+        return .{ .message = message };
+    }
+
+    pub fn jsonParseFromValue(
+        alloc: Allocator,
+        source: json.Value,
+        options: json.ParseOptions,
+    ) !MessageCreate {
+        const message = try json.innerParseFromValue(
+            types.Message,
+            alloc,
+            source,
+            options,
+        );
+        return .{ .message = message };
+    }
+
+    pub fn jsonStringify(self: MessageCreate, writer: anytype) !void {
+        try json.stringify(self.message, .{}, writer);
+    }
 };
