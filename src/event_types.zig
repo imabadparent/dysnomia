@@ -122,33 +122,41 @@ pub const Ready = struct {
     application: types.PartialApplication,
 };
 
-pub const MessageCreate = struct {
-    message: types.Message,
+/// Used when a gateway event is a container for a rest type
+/// ie: ChannelCreate or MessageCreate
+fn Container(comptime T: type) type {
+    return struct {
+        const Self = @This();
+        payload: T,
 
-    pub fn jsonParse(
-        alloc: Allocator,
-        source: anytype,
-        options: json.ParseOptions,
-    ) json.ParseError(@TypeOf(source.*))!MessageCreate {
-        const message = try json.innerParse(types.Message, alloc, source, options);
-        return .{ .message = message };
-    }
+        pub fn jsonParse(
+            alloc: Allocator,
+            source: anytype,
+            options: json.ParseOptions,
+        ) json.ParseError(@TypeOf(source.*))!Self {
+            const payload = try json.innerParse(T, alloc, source, options);
+            return .{ .payload = payload };
+        }
 
-    pub fn jsonParseFromValue(
-        alloc: Allocator,
-        source: json.Value,
-        options: json.ParseOptions,
-    ) !MessageCreate {
-        const message = try json.innerParseFromValue(
-            types.Message,
-            alloc,
-            source,
-            options,
-        );
-        return .{ .message = message };
-    }
+        pub fn jsonParseFromValue(
+            alloc: Allocator,
+            source: json.Value,
+            options: json.ParseOptions,
+        ) !Self {
+            const payload = try json.innerParseFromValue(
+                T,
+                alloc,
+                source,
+                options,
+            );
+            return .{ .payload = payload };
+        }
 
-    pub fn jsonStringify(self: MessageCreate, writer: anytype) !void {
-        try json.stringify(self.message, .{}, writer);
-    }
-};
+        pub fn jsonStringify(self: Self, writer: anytype) !void {
+            try json.stringify(self.payload, .{}, writer);
+        }
+    };
+}
+
+pub const ChannelCreate = Container(types.Channel);
+pub const MessageCreate = Container(types.Message);
