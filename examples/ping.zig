@@ -8,10 +8,13 @@ fn onReady(_: *dys.Client, event: dys.events.Ready) !void {
 }
 
 fn onMessageCreate(self: *dys.Client, event: dys.events.MessageCreate) !void {
-    _ = self;
     if (event.payload.author.bot) return;
 
     std.debug.print("message received from: {s}\n", .{event.payload.author.username});
+
+    const emojis = try self.listGuildEmoji(event.payload.guild_id orelse return);
+
+    std.debug.print("emojis -> {any}\n", .{emojis});
 }
 
 pub fn main() !void {

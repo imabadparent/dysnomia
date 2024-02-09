@@ -4,6 +4,7 @@ const rest = @import("rest_types.zig");
 pub const events = @import("event_types.zig");
 
 pub usingnamespace rest;
+pub usingnamespace @import("discord/emoji.zig");
 
 const Allocator = std.mem.Allocator;
 

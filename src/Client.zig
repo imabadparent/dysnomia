@@ -294,7 +294,7 @@ fn sendIdentify(self: *Client) !void {
 }
 
 // REST methods
-inline fn get(self: *Client, comptime T: type, endpoint: []const u8) !T {
+pub inline fn get(self: *Client, comptime T: type, endpoint: []const u8) !T {
     const allocator = self._arena.allocator();
 
     const url: []u8 = try allocator.alloc(u8, base.len + endpoint.len);
@@ -331,4 +331,9 @@ pub fn getUser(self: *Client, id: u64) !dys.User {
     const endpoint = try std.fmt.allocPrint(self._arena.allocator(), "/users/{d}", .{id.toId()});
 
     return try self.get(dys.User, endpoint);
+}
+
+pub fn listGuildEmoji(self: *Client, guild_id: dys.Snowflake) ![]dys.Emoji {
+    const endpoint = try std.fmt.allocPrint(self._arena.allocator(), "/guilds/{d}/emojis", .{guild_id.toId()});
+    return self.get([]dys.Emoji, endpoint);
 }
