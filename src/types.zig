@@ -1,10 +1,11 @@
 const std = @import("std");
 const json = std.json;
-const rest = @import("rest_types.zig");
 pub const events = @import("event_types.zig");
 
-pub usingnamespace rest;
+pub usingnamespace @import("discord/channel.zig");
 pub usingnamespace @import("discord/emoji.zig");
+pub usingnamespace @import("discord/guild.zig");
+pub usingnamespace @import("discord/user.zig");
 
 const Allocator = std.mem.Allocator;
 
@@ -149,6 +150,22 @@ test "Timestamp.fromString" {
     try std.testing.expect(timestamp.second == 1);
     try std.testing.expect(timestamp.microsecond == 1000000);
 }
+
+pub const Gateway = struct {
+    url: []const u8,
+    shards: u32,
+    session_start_limit: struct {
+        total: u32,
+        remaining: u32,
+        reset_after: u32,
+        max_concurrency: u32,
+    },
+};
+
+pub const PartialApplication = struct {
+    id: Snowflake,
+    flags: i64 = 0,
+};
 
 /// Events received from the gateway will always follow this format, with `d`
 /// being the payload which is parsed into an `Event` union with the active
