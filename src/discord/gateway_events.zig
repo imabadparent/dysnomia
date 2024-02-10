@@ -1,8 +1,8 @@
 const std = @import("std");
 const json = std.json;
-const types = @import("types.zig");
-
 const Allocator = std.mem.Allocator;
+
+const dys = @import("../dysnomia.zig");
 
 pub const Event = union(enum) {
     unknown,
@@ -34,6 +34,8 @@ pub const Event = union(enum) {
         }
     }
 };
+
+// Send Events
 
 pub const Close = struct {
     const Code = enum(i64) {
@@ -75,8 +77,6 @@ pub const Close = struct {
     reason: []const u8,
 };
 
-// Send Events
-
 pub const Hello = struct {
     heartbeat_interval: i64,
 };
@@ -99,7 +99,7 @@ pub const Identify = struct {
 /// different to PresenceUpdateEvent, which is sent by discord
 pub const UpdatePresence = struct {
     since: ?i64 = null,
-    activies: []types.Activity = &.{},
+    activies: []dys.Activity = &.{},
     status: enum {
         online,
         dnd,
@@ -114,12 +114,12 @@ pub const UpdatePresence = struct {
 
 pub const Ready = struct {
     v: i64,
-    user: types.User,
-    guilds: []types.UnavailableGuild,
+    user: dys.User,
+    guilds: []dys.UnavailableGuild,
     session_id: []const u8,
     resume_gateway_url: []const u8,
     shard: [2]i64 = .{ 0, 0 },
-    application: types.PartialApplication,
+    application: dys.PartialApplication,
 };
 
 /// Used when a gateway event is a container for a rest type
@@ -158,5 +158,5 @@ fn Container(comptime T: type) type {
     };
 }
 
-pub const ChannelCreate = Container(types.Channel);
-pub const MessageCreate = Container(types.Message);
+pub const ChannelCreate = Container(dys.Channel);
+pub const MessageCreate = Container(dys.Message);
