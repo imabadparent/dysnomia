@@ -1,13 +1,14 @@
 const std = @import("std");
 const json = std.json;
-pub const events = @import("event_types.zig");
+const Allocator = std.mem.Allocator;
 
+pub const events = @import("event_types.zig");
 pub usingnamespace @import("discord/channel.zig");
 pub usingnamespace @import("discord/emoji.zig");
 pub usingnamespace @import("discord/guild.zig");
 pub usingnamespace @import("discord/user.zig");
 
-const Allocator = std.mem.Allocator;
+// the rest of this file is for unsorted types, they might be moved in the future
 
 /// The first second of 2015, which discord uses for timestamps
 pub const discord_epoch = 1_420_070_400_000;

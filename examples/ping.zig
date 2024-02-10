@@ -7,14 +7,10 @@ fn onReady(_: *dys.Client, event: dys.events.Ready) !void {
     std.log.info("logged in as: {s}", .{event.user.username});
 }
 
-fn onMessageCreate(self: *dys.Client, event: dys.events.MessageCreate) !void {
+fn onMessageCreate(_: *dys.Client, event: dys.events.MessageCreate) !void {
     if (event.payload.author.bot) return;
 
     std.debug.print("message received from: {s}\n", .{event.payload.author.username});
-
-    const emojis = try self.listGuildEmoji(event.payload.guild_id orelse return);
-
-    std.debug.print("emojis -> {any}\n", .{emojis});
 }
 
 pub fn main() !void {
