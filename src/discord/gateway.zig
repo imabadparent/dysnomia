@@ -19,7 +19,9 @@ pub const Gateway = struct {
 
 /// Events received from the gateway will always follow this format, with `d`
 /// being the payload which is parsed into an `Event` union with the active
-/// field coresponding to the event type
+/// field coresponding to the event type. If the event type is not implemented
+/// yet, the active field will be `.unknown` and the payload will be a raw
+/// `json.Value`
 pub const GatewayEvent = struct {
     pub const Opcode = enum(i64) {
         dispatch = 0,
@@ -95,7 +97,7 @@ pub const GatewayEvent = struct {
 
                 const tag_type = @typeInfo(events.Event).Union.tag_type.?;
                 const event = std.meta.stringToEnum(tag_type, event_str);
-                if (event == null) break :blk .unknown;
+                if (event == null) break :blk events.Event{ .unknown = data };
                 switch (event.?) {
                     .ready => {
                         const value = try json.innerParseFromValue(
@@ -115,7 +117,7 @@ pub const GatewayEvent = struct {
                         );
                         break :blk events.Event{ .message_create = value };
                     },
-                    else => break :blk .unknown,
+                    else => break :blk .{ .unknown = data },
                 }
             },
             .heartbeat_ack => .heartbeat_ack,
@@ -137,7 +139,7 @@ pub const GatewayEvent = struct {
                 );
                 break :blk .{ .identify = value };
             },
-            else => .unknown,
+            else => .{ .unknown = data },
         };
 
         return result;

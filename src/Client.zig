@@ -56,6 +56,7 @@ callbacks: struct {
     /// Called when the client recieves the `Ready` event
     on_ready: ?Callback(dys.events.Ready) = null,
     on_message_create: ?Callback(dys.events.MessageCreate) = null,
+    on_unknown: ?Callback(json.Value) = null,
 } = .{},
 
 _arena: std.heap.ArenaAllocator,
@@ -172,7 +173,6 @@ fn processEvent(self: *Client, event: dys.events.Event) !void {
         .close => |e| {
             if (!self._sent_close) return self.sendClose(e) else return error.Closed;
         },
-
         .heartbeat => {
             try self.sendHeartbeat();
         },
@@ -194,6 +194,13 @@ fn processEvent(self: *Client, event: dys.events.Event) !void {
             if (self.callbacks.on_message_create) |on_message_create| {
                 on_message_create(self, e) catch |err| {
                     dys.log.err("on_message_create callback failed with error: {}", .{err});
+                };
+            }
+        },
+        .unknown => |e| {
+            if (self.callbacks.on_unknown) |on_unknown| {
+                on_unknown(self, e) catch |err| {
+                    dys.log.err("on_unknown callback failed with error: {}", .{err});
                 };
             }
         },

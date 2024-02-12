@@ -5,7 +5,7 @@ const Allocator = std.mem.Allocator;
 const dys = @import("../dysnomia.zig");
 
 pub const Event = union(enum) {
-    unknown,
+    unknown: json.Value,
     // recieve events
     heartbeat_ack,
     close: Close,
