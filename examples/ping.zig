@@ -3,6 +3,12 @@ const dys = @import("dysnomia");
 
 const config_path = "examples/config.json";
 
+// This sets the log function to that of the library
+// This isn't necessary, but I think it looks better
+pub const std_options = .{
+    .logFn = dys.logFn,
+};
+
 fn onReady(_: *dys.Client, event: dys.events.Ready) !void {
     std.log.info("logged in as: {s}", .{event.user.username});
 }

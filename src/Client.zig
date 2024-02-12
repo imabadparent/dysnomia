@@ -148,11 +148,11 @@ pub fn handle(self: *Client, msg: ws.Message) !void {
         msg.data,
         .{},
     ) catch |err| {
-        std.log.err("error handling event: {}", .{err});
+        dys.log.err("error handling event: {}", .{err});
         return err;
     };
 
-    std.log.debug(
+    dys.log.debug(
         "received event: {s}",
         .{@tagName(g_event.d)},
     );
@@ -186,14 +186,14 @@ fn processEvent(self: *Client, event: dys.events.Event) !void {
         .ready => |e| {
             if (self.callbacks.on_ready) |on_ready| {
                 on_ready(self, e) catch |err| {
-                    std.log.err("on_ready callback failed with error: {}", .{err});
+                    dys.log.err("on_ready callback failed with error: {}", .{err});
                 };
             }
         },
         .message_create => |e| {
             if (self.callbacks.on_message_create) |on_message_create| {
                 on_message_create(self, e) catch |err| {
-                    std.log.err("on_message_create callback failed with error: {}", .{err});
+                    dys.log.err("on_message_create callback failed with error: {}", .{err});
                 };
             }
         },
@@ -213,7 +213,7 @@ fn eventLoop(self: *Client) !void {
     while (!self._sent_close) {
         while (self._events.popOrNull()) |event| {
             self.processEvent(event) catch |err| {
-                std.log.err("closing because of error: {}", .{err});
+                dys.log.err("closing because of error: {}", .{err});
                 if (!self._sent_close) try self.sendClose(.{
                     .code = .protocol_error,
                     .reconnect = false,
@@ -222,7 +222,7 @@ fn eventLoop(self: *Client) !void {
                 return err;
             };
             if (self._awaiting_ack) {
-                std.log.err("did not receive heartbeat_ack", .{});
+                dys.log.err("did not receive heartbeat_ack", .{});
                 try self.sendClose(.{
                     .code = .protocol_error,
                     .reconnect = false,
@@ -246,7 +246,7 @@ fn eventLoop(self: *Client) !void {
 }
 
 fn sendClose(self: *Client, event: dys.events.Close) !void {
-    std.log.warn("gateway closed: {s}", .{event.reason});
+    dys.log.warn("gateway closed: {s}", .{event.reason});
     self._sent_close = true;
     const code_int: u16 = if (@intFromEnum(event.code) <= std.math.maxInt(u16))
         @intCast(@intFromEnum(event.code))
