@@ -327,13 +327,19 @@ pub fn getCurrentUser(self: *Client) !dys.User {
     return try self.get(dys.User, "/users/@me");
 }
 
-pub fn getUser(self: *Client, id: u64) !dys.User {
+pub fn getUser(self: *Client, id: dys.Snowflake) !dys.User {
     const endpoint = try std.fmt.allocPrint(self._arena.allocator(), "/users/{d}", .{id.toId()});
 
-    return try self.get(dys.User, endpoint);
+    return self.get(dys.User, endpoint);
 }
 
-pub fn listGuildEmoji(self: *Client, guild_id: dys.Snowflake) ![]dys.Emoji {
-    const endpoint = try std.fmt.allocPrint(self._arena.allocator(), "/guilds/{d}/emojis", .{guild_id.toId()});
+pub fn getChannel(self: *Client, id: dys.Snowflake) !dys.Channel {
+    const endpoint = try std.fmt.allocPrint(self._arena.allocator(), "/channels/{d}", .{id.toId()});
+
+    return self.get(dys.Channel, endpoint);
+}
+
+pub fn listGuildEmoji(self: *Client, id: dys.Snowflake) ![]dys.Emoji {
+    const endpoint = try std.fmt.allocPrint(self._arena.allocator(), "/guilds/{d}/emojis", .{id.toId()});
     return self.get([]dys.Emoji, endpoint);
 }

@@ -7,10 +7,13 @@ fn onReady(_: *dys.Client, event: dys.events.Ready) !void {
     std.log.info("logged in as: {s}", .{event.user.username});
 }
 
-fn onMessageCreate(_: *dys.Client, event: dys.events.MessageCreate) !void {
+fn onMessageCreate(self: *dys.Client, event: dys.events.MessageCreate) !void {
     if (event.payload.author.bot) return;
+    const msg = event.payload;
 
-    std.debug.print("message received from: {s}\n", .{event.payload.author.username});
+    const channel = try self.getChannel(msg.channel_id);
+
+    std.debug.print("{s} sent a message in #{?s}\n", .{ msg.author.username, channel.name });
 }
 
 pub fn main() !void {
@@ -27,6 +30,7 @@ pub fn main() !void {
     client.intents = .{
         .message_content = true,
         .guild_messages = true,
+        .direct_messages = true,
     };
 
     client.callbacks = .{
