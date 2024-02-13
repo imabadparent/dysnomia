@@ -13,6 +13,6 @@ allow anyone to do anything with this library, unencumbered by copyright.
 
 ## References
 These are other open source discord libraries I have used as a reference
-[discordgo (go)](https://github.com/bwmarrin/discordgo) - BSD 3-Clause
-[serenity (rust)](https://github.com/serenity-rs/serenity) - ISC
-[concord (c)](https://github.com/Cogmasters/concord) - MIT
+- [discordgo (go)](https://github.com/bwmarrin/discordgo) - BSD 3-Clause
+- [serenity (rust)](https://github.com/serenity-rs/serenity) - ISC
+- [concord (c)](https://github.com/Cogmasters/concord) - MIT
