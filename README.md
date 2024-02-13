@@ -14,11 +14,11 @@ names, which also fit pretty well.
 
 ## License
 This project is licensed under the MIT-0, also known as the MIT-No Attribution license.
-The full license text can be found at LICENSE.md. My intention with this is to generally
+The full license text can be found at [LICENSE](./LICENSE). My intention with this is to generally
 allow anyone to do anything with this library, unencumbered by copyright.
 
 ## References
 These are other open source discord libraries I have used as a reference
-[discordgo (go)](https://github.com/bwmarrin/discordgo) - BSD 3-Clause
-[serenity (rust)](https://github.com/serenity-rs/serenity) - ISC
-[concord (c)](https://github.com/Cogmasters/concord) - MIT
+- [discordgo (go)](https://github.com/bwmarrin/discordgo) - BSD 3-Clause
+- [serenity (rust)](https://github.com/serenity-rs/serenity) - ISC
+- [concord (c)](https://github.com/Cogmasters/concord) - MIT
