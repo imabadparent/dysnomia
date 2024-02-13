@@ -6,6 +6,12 @@ unimplemented features are currently passed through as raw `json.Value`s, so mos
 things can still be done. I hope to reach full coverage in the future, but I make
 no guarantees.
 
+## Name
+Dysnomia is the daughter of Eris, Greek goddess of discord, and I liked the idea
+of keeping the theme of mythology-inspired names. I was also struggling to find
+a name for the project, and dysnomia also happens to mean the inability to recall
+names, which also fit pretty well.
+
 ## License
 This project is licensed under the MIT-0, also known as the MIT-No Attribution license.
 The full license text can be found at LICENSE.md. My intention with this is to generally
