@@ -8,7 +8,7 @@ no guarantees.
 
 ## License
 This project is licensed under the MIT-0, also known as the MIT-No Attribution license.
-The full license text can be found at LICENSE.md. My intention with this is to generally
+The full license text can be found at [LICENSE](./LICENSE). My intention with this is to generally
 allow anyone to do anything with this library, unencumbered by copyright.
 
 ## References
