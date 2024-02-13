@@ -19,7 +19,11 @@ fn onMessageCreate(self: *dys.Client, event: dys.events.MessageCreate) !void {
 
     const channel = try self.getChannel(msg.channel_id);
 
-    std.debug.print("{s} sent a message in #{?s}\n", .{ msg.author.username, channel.name });
+    if (std.mem.startsWith(u8, msg.content, "!ping")) {
+        std.debug.print("{s} sent a ping in #{?s}\n", .{ msg.author.username, channel.name });
+
+        _ = try self.createMessage(channel.id, .{ .content = "pong" });
+    }
 }
 
 pub fn main() !void {

@@ -1,9 +1,11 @@
 const dys = @import("../dysnomia.zig");
-const json = @import("std").json;
+const std = @import("std");
+const json = std.json;
+const Allocator = std.mem.Allocator;
 
 // This file is for types listed [here](https://discord.com/developers/docs/resources/channel)
 
-/// [Discord channel](https://discord.com/developers/docs/resources/channel#channel-object)
+/// [Channel](https://discord.com/developers/docs/resources/channel#channel-object)
 pub const Channel = struct {
     id: dys.Snowflake,
     type: u64, // TODO: make this a packed struct
@@ -42,8 +44,83 @@ pub const Channel = struct {
     default_forum_layout: ?u64 = null, // TODO: make this an enum
 };
 
-/// [Discord message](https://discord.com/developers/docs/resources/channel#message-object)
+/// [Message](https://discord.com/developers/docs/resources/channel#message-object)
 pub const Message = struct {
+    pub const Nonce = union(enum) {
+        int: i64,
+        string: []const u8,
+
+        pub fn jsonParse(
+            alloc: Allocator,
+            source: anytype,
+            options: json.ParseOptions,
+        ) json.ParseError(@TypeOf(source.*))!Nonce {
+            const value = try json.innerParse(json.Value, alloc, source, options);
+            return jsonParseFromValue(alloc, value, options);
+        }
+
+        pub fn jsonParseFromValue(
+            _: Allocator,
+            source: json.Value,
+            _: json.ParseOptions,
+        ) !Nonce {
+            return switch (source) {
+                .integer => |n| .{ .int = n },
+                .string, .number_string => |str| .{ .string = str },
+                else => error.UnexpectedToken,
+            };
+        }
+
+        pub fn jsonStringify(self: Nonce, writer: anytype) !void {
+            return switch (self) {
+                .int => writer.print("{d}", .{self.int}),
+                .string => writer.print("\"{s}\"", .{self.string}),
+            };
+        }
+    };
+
+    pub const Flags = packed struct(u64) {
+        crossposted: bool = false,
+        is_crosspost: bool = false,
+        suppress_embeds: bool = false,
+        source_message_deleted: bool = false,
+        urgent: bool = false,
+        has_thread: bool = false,
+        ephemeral: bool = false,
+        loading: bool = false,
+        failed_to_mention_some_roles_in_thread: bool = false,
+        _padding: u3 = 0,
+        suppress_notifications: bool = false,
+        is_voice_message: bool = false,
+
+        _padding2: u50 = 0,
+
+        pub fn jsonParse(
+            alloc: Allocator,
+            source: anytype,
+            options: json.ParseOptions,
+        ) json.ParseError(@TypeOf(source.*))!Flags {
+            const id = try json.innerParse(u64, alloc, source, options);
+            return @bitCast(id);
+        }
+
+        pub fn jsonParseFromValue(
+            _: Allocator,
+            source: json.Value,
+            _: json.ParseOptions,
+        ) !Flags {
+            return switch (source) {
+                .integer => @bitCast(source.integer),
+                .string, .number_string => @bitCast(try std.fmt.parseInt(u64, source.string, 10)),
+                else => error.UnexpectedToken,
+            };
+        }
+
+        pub fn jsonStringify(self: Flags, writer: anytype) !void {
+            try writer.print("\"{d}\"", .{@as(u64, @bitCast(self))});
+        }
+    };
+
     id: dys.Snowflake,
     channel_id: dys.Snowflake,
     author: dys.User,
@@ -58,7 +135,7 @@ pub const Message = struct {
     attachments: json.Value, // TODO: type should be `[]Attachment`
     embeds: json.Value, // TODO: type should be `[]Embed`
     reactions: ?json.Value = null, // TODO: type should be `[]Reaction`
-    nonce: ?json.Value = null, // TODO: type should be `Nonce`
+    nonce: ?Nonce = null,
     pinned: bool,
     webhook_id: ?dys.Snowflake = null,
     type: u64, // TODO: create enum for `MessageType`
@@ -66,7 +143,7 @@ pub const Message = struct {
     application: ?json.Value = null, // TODO: Figure what "partial application" means
     application_id: ?dys.Snowflake = null,
     message_reference: ?json.Value = null, // TODO: type should be `MessageReference`
-    flags: ?u64 = null, // TODO: create packed struct for `MessageFlags`
+    flags: ?Flags = null,
     referenced_message: ?*Message = null,
     interaction: ?json.Value = null, // TODO: type should be `MessageInteraction`
     thread: ?json.Value = null, //TODO: type should be `Channel`
@@ -81,4 +158,26 @@ pub const Message = struct {
     guild_id: ?dys.Snowflake = null,
     //// Only present in messages recieved from the gateway
     member: ?dys.GuildMember = null,
+};
+
+// Create types
+
+/// [Create Message](https://discord.com/developers/docs/resources/channel#create-message)
+/// At least one of `content`, `embeds`, `sticker_ids`, `components`, or `files`
+/// must not be null
+pub const CreateMessage = struct {
+    content: ?[]const u8 = null,
+    nonce: ?Message.Nonce = null,
+    tts: ?bool = null,
+    embeds: ?json.Value = null, // TODO: type should be `[]Embed`
+    allowed_mentions: ?json.Value = null, // TODO: type should be `AllowedMention`
+    message_reference: ?json.Value = null, // TODO: type should be `MessageReference`
+    components: ?json.Value = null, // TODO: type should be `[]MessageComponent`
+    sticker_ids: ?dys.Snowflake = null,
+    attachments: ?json.Value = null, // TODO: type should be []Attachment
+    flags: ?Message.Flags = null,
+
+    /// List of paths to files to add to the message
+    /// Internal use only, to add a file, use `CreateMessage.addFile()`
+    _files: ?[][]const u8 = null,
 };

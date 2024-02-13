@@ -48,7 +48,7 @@ pub const Config = struct {
     token: []const u8,
 };
 
-const base = "https://discord.com/api/v10/";
+const base = "https://discord.com/api/v10";
 
 /// Gateway intents, tells discord what events we want to listen to
 intents: dys.Intents = .{},
@@ -84,6 +84,7 @@ pub fn init(allocator: std.mem.Allocator, config: Config) !Client {
 
     var headers = http.Headers.init(arena.allocator());
     try headers.append("Authorization", tok);
+    try headers.append("User-Agent", "DiscordBot (https://github.com/imabadparent/dysnomia, 0.1.0)");
 
     return Client{
         .callbacks = .{},
@@ -326,6 +327,39 @@ pub inline fn get(self: *Client, comptime T: type, endpoint: []const u8) !T {
     );
 }
 
+pub inline fn post(self: *Client, comptime T: type, endpoint: []const u8, data: anytype) !T {
+    const allocator = self._arena.allocator();
+
+    const url: []u8 = try allocator.alloc(u8, base.len + endpoint.len);
+    defer allocator.free(url);
+    @memcpy(url[0..base.len], base);
+    @memcpy(url[base.len..], endpoint);
+
+    const value = try json.stringifyAlloc(allocator, data, .{ .emit_null_optional_fields = false });
+
+    var headers = try self._headers.clone(allocator);
+    defer headers.deinit();
+    try headers.append("Content-Type", "application/json");
+
+    var req = try self._httpclient.open(.POST, try std.Uri.parse(url), headers, .{ .handle_redirects = false });
+    defer req.deinit();
+    req.transfer_encoding = .{ .content_length = value.len };
+    try req.send(.{});
+
+    try req.writeAll(value);
+
+    try req.finish();
+    try req.wait();
+
+    if (req.response.status != .ok) return error.BadResponse;
+
+    var reader = json.Reader(4096, @TypeOf(req.reader())).init(allocator, req.reader());
+    defer reader.deinit();
+
+    return json.parseFromTokenSourceLeaky(T, allocator, &reader, .{ .ignore_unknown_fields = true });
+    //return json.parseFromSliceLeaky(T, allocator, result.body.?, .{ .ignore_unknown_fields = true });
+}
+
 fn getGateway(self: *Client) !dys.Gateway {
     return self.get(dys.Gateway, "/gateway/bot");
 }
@@ -349,4 +383,18 @@ pub fn getChannel(self: *Client, id: dys.Snowflake) !dys.Channel {
 pub fn listGuildEmoji(self: *Client, id: dys.Snowflake) ![]dys.Emoji {
     const endpoint = try std.fmt.allocPrint(self._arena.allocator(), "/guilds/{d}/emojis", .{id.toId()});
     return self.get([]dys.Emoji, endpoint);
+}
+
+pub fn createMessage(
+    self: *Client,
+    channel_id: dys.Snowflake,
+    msg: dys.CreateMessage,
+) !dys.Message {
+    const endpoint = try std.fmt.allocPrint(
+        self._arena.allocator(),
+        "/channels/{d}/messages",
+        .{channel_id.toId()},
+    );
+
+    return self.post(dys.Message, endpoint, msg);
 }
