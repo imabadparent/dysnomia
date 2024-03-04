@@ -2,6 +2,7 @@ const std = @import("std");
 const ws = @import("websocket");
 const dys = @import("dysnomia.zig");
 const http = std.http;
+const Request = http.Client.Request;
 const json = std.json;
 
 const Client = @This();
@@ -61,8 +62,8 @@ callbacks: struct {
 
 _arena: std.heap.ArenaAllocator,
 _token: []const u8,
-_httpclient: std.http.Client,
-_headers: std.http.Headers,
+_httpclient: http.Client,
+_headers: Request.Headers,
 _wsclient: ?ws.Client = null,
 _sent_close: bool = false,
 
@@ -82,16 +83,14 @@ pub fn init(allocator: std.mem.Allocator, config: Config) !Client {
     else
         try std.fmt.allocPrint(arena.allocator(), "Bearer {s}", .{config.token});
 
-    var headers = http.Headers.init(arena.allocator());
-    try headers.append("Authorization", tok);
-    try headers.append("User-Agent", "DiscordBot (https://github.com/imabadparent/dysnomia, 0.1.0)");
-
     return Client{
         .callbacks = .{},
         ._arena = arena,
         ._token = tok,
         ._httpclient = http.Client{ .allocator = allocator },
-        ._headers = headers,
+        ._headers = .{ .user_agent = .{
+            .override = "DiscordBot (https://github.com/imabadparent/dysnomia, 0.1.0)",
+        }, .authorization = .{ .override = tok }, .content_type = .{ .override = "application/json" } },
         ._events = EventList.init(allocator),
     };
 }
@@ -310,19 +309,22 @@ pub inline fn get(self: *Client, comptime T: type, endpoint: []const u8) !T {
     @memcpy(url[0..base.len], base);
     @memcpy(url[base.len..], endpoint);
 
-    var result = try self._httpclient.fetch(allocator, .{
+    var response = std.ArrayList(u8).init(allocator);
+    defer response.deinit();
+
+    const result = try self._httpclient.fetch(.{
         .location = .{ .url = url },
         .headers = self._headers,
+        .response_storage = .{ .dynamic = &response },
     });
-    defer result.deinit();
-    if (result.status != .ok or result.body == null) {
+    if (result.status != .ok or response.items.len == 0) {
         return error.UnableToReachEndpoint;
     }
 
     return try json.parseFromSliceLeaky(
         T,
         allocator,
-        result.body.?,
+        response.items,
         .{ .allocate = .alloc_always, .ignore_unknown_fields = true },
     );
 }
@@ -337,12 +339,18 @@ pub inline fn post(self: *Client, comptime T: type, endpoint: []const u8, data: 
 
     const value = try json.stringifyAlloc(allocator, data, .{ .emit_null_optional_fields = false });
 
-    var headers = try self._headers.clone(allocator);
-    defer headers.deinit();
-    try headers.append("Content-Type", "application/json");
-
-    var req = try self._httpclient.open(.POST, try std.Uri.parse(url), headers, .{ .handle_redirects = false });
+    var header_buffer: [4096]u8 = .{0} ** 4096;
+    var req = try self._httpclient.open(
+        .POST,
+        try std.Uri.parse(url),
+        .{
+            .server_header_buffer = &header_buffer,
+            .redirect_behavior = .unhandled,
+            .headers = self._headers,
+        },
+    );
     defer req.deinit();
+
     req.transfer_encoding = .{ .content_length = value.len };
     try req.send(.{});
 
@@ -357,7 +365,6 @@ pub inline fn post(self: *Client, comptime T: type, endpoint: []const u8, data: 
     defer reader.deinit();
 
     return json.parseFromTokenSourceLeaky(T, allocator, &reader, .{ .ignore_unknown_fields = true });
-    //return json.parseFromSliceLeaky(T, allocator, result.body.?, .{ .ignore_unknown_fields = true });
 }
 
 fn getGateway(self: *Client) !dys.Gateway {

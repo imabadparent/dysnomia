@@ -7,8 +7,44 @@ const Allocator = std.mem.Allocator;
 
 /// [Channel](https://discord.com/developers/docs/resources/channel#channel-object)
 pub const Channel = struct {
+    pub const Type = enum(u64) {
+        guild_text = 0,
+        dm = 1,
+        guild_voice = 2,
+        group_dm = 3,
+        guild_category = 4,
+        guild_announcement = 5,
+        announcement_thread = 10,
+        public_thread = 11,
+        private_thread = 12,
+        guild_stage_voice = 13,
+        guild_directory = 14,
+        guild_forum = 15,
+        guild_media = 16,
+        _,
+
+        pub fn jsonStringify(self: @This(), writer: anytype) !void {
+            writer.write(@intFromEnum(self));
+        }
+    };
+    pub const VideoQualityMode = enum(u64) {
+        auto = 1,
+        full = 2,
+        pub fn jsonStringify(self: @This(), writer: anytype) !void {
+            writer.write(@intFromEnum(self));
+        }
+    };
+    pub const Flags = packed struct(u64) {
+        pinned: bool,
+        _padding0: u2,
+        require_tag: bool,
+        _padding1: u10,
+        hide_media_download_options: bool,
+        _padding2: u49,
+    };
+
     id: dys.Snowflake,
-    type: u64, // TODO: make this a packed struct
+    type: Type,
     guild_id: ?dys.Snowflake = null,
     position: ?u64 = null,
     permission_overwrites: ?json.Value = null, // TODO: type should be `[]Overwrite`
@@ -27,7 +63,7 @@ pub const Channel = struct {
     parent_id: ?dys.Snowflake = null,
     last_pin_timestamp: ?dys.Timestamp = null,
     rtc_region: ?[]const u8 = null,
-    video_quality_mode: ?u64 = null, // TODO: make this an enum
+    video_quality_mode: ?VideoQualityMode = null,
     message_count: ?u64 = null,
     member_count: ?u64 = null,
     thread_metadata: ?json.Value = null, // TODO: type should be `ThreadMetadata`
