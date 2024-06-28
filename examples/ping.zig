@@ -14,9 +14,10 @@ fn onReady(_: *dys.Client, event: dys.events.Ready) !void {
 }
 
 fn onMessageCreate(self: *dys.Client, event: dys.events.MessageCreate) !void {
+    // Don't respond to bots
     if (event.payload.author.bot) return;
-    const msg = event.payload;
 
+    const msg = event.payload;
     const channel = try self.getChannel(msg.channel_id);
 
     if (std.mem.startsWith(u8, msg.content, "!ping")) {
