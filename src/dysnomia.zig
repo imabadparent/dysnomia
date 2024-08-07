@@ -2,14 +2,17 @@ const std = @import("std");
 
 pub const log = std.log.scoped(.dysnomia);
 
+/// The client struct which contains everything related to interacting with the Discord account
+/// it is logged in as, such as sending and receiving WebSocket events, and sending REST API calls
 pub const Client = @import("Client.zig");
+/// Contains all of the types related to working with the Discord API
 const types = @import("types.zig");
 
 pub usingnamespace types;
 
 const dys = @This();
-/// Will parse your config from a json file for you
-/// Allows you to not hardcode your token
+/// Parses the config at `config_path` and returns a parsed json object. The caller is responsible
+/// for calling `deinit()` on this object.
 pub fn parseConfig(
     allocator: std.mem.Allocator,
     config_path: []const u8,
