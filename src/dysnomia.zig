@@ -2,10 +2,6 @@ const std = @import("std");
 
 pub const log = std.log.scoped(.dysnomia);
 
-pub const std_options = .{
-    .logFn = logFn,
-};
-
 pub const Client = @import("Client.zig");
 const types = @import("types.zig");
 
@@ -35,17 +31,5 @@ pub fn parseConfig(
 }
 
 test {
-    _ = @import("types.zig");
-}
-
-pub fn logFn(
-    comptime level: std.log.Level,
-    comptime scope: @TypeOf(.EnumLiteral),
-    comptime format: []const u8,
-    args: anytype,
-) void {
-    // [TIME][SCOPE][LEVEL] MESSAGE
-    const prefix = "[" ++ @tagName(scope) ++ "]" ++ "[" ++ comptime level.asText() ++ "] ";
-
-    std.debug.print(prefix ++ format ++ "\n", args);
+    std.testing.refAllDecls(@import("types.zig"));
 }
