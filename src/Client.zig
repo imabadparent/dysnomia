@@ -288,7 +288,7 @@ fn sendIdentify(self: *Client) !void {
     const id = dys.events.Identify{
         .token = self._token,
         .properties = .{
-            .os = &std.os.uname().sysname,
+            .os = &std.posix.uname().sysname,
         },
         .intents = @bitCast(self.intents),
     };
@@ -352,7 +352,7 @@ pub inline fn post(self: *Client, comptime T: type, endpoint: []const u8, data: 
     defer req.deinit();
 
     req.transfer_encoding = .{ .content_length = value.len };
-    try req.send(.{});
+    try req.send();
 
     try req.writeAll(value);
 
