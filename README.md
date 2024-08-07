@@ -13,9 +13,10 @@ a name for the project, and dysnomia also happens to mean the inability to recal
 names, which also fit pretty well.
 
 ## License
-This project is licensed under the MIT-0, also known as the MIT-No Attribution license.
-The full license text can be found at [LICENSE](./LICENSE). My intention with this is to generally
-allow anyone to do anything with this library, unencumbered by copyright.
+This project is licensed under the MIT license. The full license text can be
+found at [LICENSE](./LICENSE). This license allows you to do whatever you wish
+with this library, as long as you provide attribution and provide a copy of the
+MIT license along with any redistribution of this code.
 
 ## References
 These are other open source discord libraries I have used as a reference
