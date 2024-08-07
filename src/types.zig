@@ -24,18 +24,21 @@ pub const Snowflake = packed struct(u64) {
     /// incremented for every id generated on a process
     increment: u12,
 
+    /// Creates a snowflake from a string, where each character is a digit in the snowflake
     pub fn fromString(string: []const u8) !Snowflake {
         const id = try std.fmt.parseInt(u64, string, 10);
         return fromId(id);
     }
+    /// Creates a Snowflake struct from the numerical representation
     pub inline fn fromId(id: u64) Snowflake {
         return @bitCast(id);
     }
-
+    /// returns the numerical representation of a Snowflake struct
     pub inline fn toId(self: Snowflake) u64 {
         return @bitCast(self);
     }
 
+    /// Interface function required for `std.json`
     pub fn jsonParse(
         alloc: Allocator,
         source: anytype,
@@ -45,6 +48,7 @@ pub const Snowflake = packed struct(u64) {
         return fromId(id);
     }
 
+    /// Interface function required for `std.json`
     pub fn jsonParseFromValue(
         _: Allocator,
         source: json.Value,
@@ -57,11 +61,14 @@ pub const Snowflake = packed struct(u64) {
         };
     }
 
+    /// Interface function required for `std.json`
     pub fn jsonStringify(self: Snowflake, writer: anytype) !void {
         try writer.print("\"{d}\"", .{self.toId()});
     }
 };
 
+/// A convience struct for operating on Discord's timestamp strings (Note that these are different
+/// from the timestamps contained in Snowflakes)
 pub const Timestamp = struct {
     year: u32,
     month: u8,
@@ -157,6 +164,8 @@ pub const PartialApplication = struct {
     flags: i64 = 0,
 };
 
+/// Discord Type
+/// [Activity](https://discord.com/developers/docs/topics/gateway-events#activity-object)
 pub const Activity = struct {
     const Type = enum(i64) {
         game = 0,
