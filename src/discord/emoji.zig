@@ -1,5 +1,8 @@
 const dys = @import("../dysnomia.zig");
 
+// This file contains types listed in [Emoji](https://discord.com/developers/docs/resources/emoji)
+
+/// [Emoji](https://discord.com/developers/docs/resources/emoji#emoji-object-emoji-structure)
 pub const Emoji = struct {
     /// emoji id
     id: ?dys.Snowflake,

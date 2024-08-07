@@ -4,40 +4,45 @@ const Allocator = std.mem.Allocator;
 
 const dys = @import("../dysnomia.zig");
 
+// This file is for types listed in [Gateway Events](https://discord.com/developers/docs/topics/gateway-events)
+
+/// A tagged union for processing and identifying events. This is not technically a Discord type,
+/// but it does corespond with the `d` field of Discord's gateway event payload
 pub const Event = union(enum) {
     unknown: json.Value,
     // recieve events
     heartbeat_ack,
     close: Close,
     hello: Hello,
+    ready: Ready,
 
     // send events
     heartbeat: ?i64,
     identify: Identify,
     update_presence: UpdatePresence,
-
-    // receive events
-    ready: Ready,
-
     message_create: MessageCreate,
 
+    // Interface function for `std.json`
     pub fn jsonStringify(self: Event, writer: anytype) !void {
         switch (self) {
+            // receive events
+            .ready => |event| try writer.write(event),
             .hello => |event| try writer.write(event),
+
+            // send events
             .heartbeat => |event| try writer.write(event),
             .identify => |event| try writer.write(event),
             .update_presence => |event| try writer.write(event),
-
-            .ready => |event| try writer.write(event),
 
             else => try writer.write("null"),
         }
     }
 };
 
-// Send Events
-
+/// This is a special event that closes the connection; It can be sent and received by both ends of
+/// the Websocket, and should be echoed back back the receiving end
 pub const Close = struct {
+    /// The close code, usually gives a reason for why the connection is closing
     const Code = enum(i64) {
         // rfc standard defined
         normal = 1000,
@@ -77,10 +82,9 @@ pub const Close = struct {
     reason: []const u8,
 };
 
-pub const Hello = struct {
-    heartbeat_interval: i64,
-};
+// Send Events (Events sent by the bot to discord)
 
+/// [Identify](https://discord.com/developers/docs/topics/gateway-events#identify)
 pub const Identify = struct {
     token: []const u8,
     properties: struct {
@@ -95,8 +99,8 @@ pub const Identify = struct {
     intents: i64 = 0,
 };
 
-/// this event is sent by the bot
-/// different to PresenceUpdateEvent, which is sent by discord
+/// (Not to be confused with: PresenceUpdateEvent, which is sent by discord)
+/// [Update Presence](https://discord.com/developers/docs/topics/gateway-events#update-presence)
 pub const UpdatePresence = struct {
     since: ?i64 = null,
     activies: []dys.Activity = &.{},
@@ -110,8 +114,14 @@ pub const UpdatePresence = struct {
     afk: bool,
 };
 
-// Receive Events
+// Receive Events (Events the bot receives from discord)
 
+/// [Hello](https://discord.com/developers/docs/topics/gateway-events#hello)
+pub const Hello = struct {
+    heartbeat_interval: i64,
+};
+
+/// [Ready](https://discord.com/developers/docs/topics/gateway-events#ready)
 pub const Ready = struct {
     v: i64,
     user: dys.User,
@@ -122,7 +132,7 @@ pub const Ready = struct {
     application: dys.PartialApplication,
 };
 
-/// Used when a gateway event is a container for a rest type
+/// Used when a gateway event is a container for a REST type
 /// ie: ChannelCreate or MessageCreate
 fn Container(comptime T: type) type {
     return struct {

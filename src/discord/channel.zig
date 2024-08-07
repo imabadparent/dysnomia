@@ -3,7 +3,9 @@ const std = @import("std");
 const json = std.json;
 const Allocator = std.mem.Allocator;
 
-// This file is for types listed [here](https://discord.com/developers/docs/resources/channel)
+// This file is for types listed in [Channel](https://discord.com/developers/docs/resources/channel)
+// Also contains types from [Message](https://discord.com/com/developers/docs/resources/message) as
+// they require a channel to be sent
 
 /// [Channel](https://discord.com/developers/docs/resources/channel#channel-object)
 pub const Channel = struct {
@@ -80,12 +82,13 @@ pub const Channel = struct {
     default_forum_layout: ?u64 = null, // TODO: make this an enum
 };
 
-/// [Message](https://discord.com/developers/docs/resources/channel#message-object)
+/// [Message](https://discord.com/developers/docs/resources/message#message-object)
 pub const Message = struct {
     pub const Nonce = union(enum) {
         int: i64,
         string: []const u8,
 
+        /// Interface function for `std.json`
         pub fn jsonParse(
             alloc: Allocator,
             source: anytype,
@@ -95,6 +98,7 @@ pub const Message = struct {
             return jsonParseFromValue(alloc, value, options);
         }
 
+        /// Interface function for `std.json`
         pub fn jsonParseFromValue(
             _: Allocator,
             source: json.Value,
@@ -107,6 +111,7 @@ pub const Message = struct {
             };
         }
 
+        /// Interface function for `std.json`
         pub fn jsonStringify(self: Nonce, writer: anytype) !void {
             return switch (self) {
                 .int => writer.print("{d}", .{self.int}),
@@ -131,6 +136,7 @@ pub const Message = struct {
 
         _padding2: u50 = 0,
 
+        /// Interface function for `std.json`
         pub fn jsonParse(
             alloc: Allocator,
             source: anytype,
@@ -140,6 +146,7 @@ pub const Message = struct {
             return @bitCast(id);
         }
 
+        /// Interface function for `std.json`
         pub fn jsonParseFromValue(
             _: Allocator,
             source: json.Value,
@@ -152,6 +159,7 @@ pub const Message = struct {
             };
         }
 
+        /// Interface function for `std.json`
         pub fn jsonStringify(self: Flags, writer: anytype) !void {
             try writer.print("\"{d}\"", .{@as(u64, @bitCast(self))});
         }
@@ -198,7 +206,7 @@ pub const Message = struct {
 
 // Create types
 
-/// [Create Message](https://discord.com/developers/docs/resources/channel#create-message)
+/// [Create Message](https://discord.com/developers/docs/resources/message#create-message)
 /// At least one of `content`, `embeds`, `sticker_ids`, `components`, or `files`
 /// must not be null
 pub const CreateMessage = struct {

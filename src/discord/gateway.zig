@@ -6,6 +6,9 @@ const dys = @import("../dysnomia.zig");
 
 pub const events = @import("gateway_events.zig");
 
+// This file is for types listed in [Gateway](https://discord.com/developers/docs/topics/gateway)
+
+/// [Gateway](https://discord.com/developers/docs/topics/gateway#get-gateway-bot-json-response)
 pub const Gateway = struct {
     url: []const u8,
     shards: u32,
@@ -41,6 +44,7 @@ pub const GatewayEvent = struct {
     s: ?i64 = null,
     t: ?[]u8 = null,
 
+    /// Interface function required for `std.json`
     pub fn jsonParse(
         alloc: Allocator,
         source: anytype,
@@ -147,6 +151,7 @@ pub const GatewayEvent = struct {
 };
 
 /// Gateway intents, send to discord as a bitfield
+/// [Gateway Intents](https://discord.com/developers/docs/topics/gateway#list-of-intents)
 pub const Intents = packed struct(u64) {
     guilds: bool = false,
     /// priveledged

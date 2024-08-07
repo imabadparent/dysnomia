@@ -1,5 +1,8 @@
 const dys = @import("../dysnomia.zig");
 
+// This file contains types listed in [User](https://discord.com/developers/docs/resources/user)
+
+/// [User](https://discord.com/developers/docs/resources/user#user-object)
 pub const User = struct {
     id: dys.Snowflake,
     username: []const u8,
