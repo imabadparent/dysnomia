@@ -36,6 +36,7 @@ fn Buffer(comptime size: comptime_int) type {
     };
 }
 
+/// A helper function for creating callback function types
 pub fn Callback(comptime T: type) type {
     return *const fn (self: *Client, event: T) anyerror!void;
 }
@@ -49,27 +50,37 @@ pub const Config = struct {
     token: []const u8,
 };
 
+/// The base url for the discord api
 const base = "https://discord.com/api/v10";
 
-/// Gateway intents, tells discord what events we want to listen to
+/// Gateway intents, tells Discord what events we want to listen to and what information to send
 intents: dys.Intents = .{},
 callbacks: struct {
     /// Called when the client recieves the `Ready` event
     on_ready: ?Callback(dys.events.Ready) = null,
+    /// Called when the client recieves the `MessageCreate` event
     on_message_create: ?Callback(dys.events.MessageCreate) = null,
+    /// Called when the client recieves an event that is not yet covered by the library.
+    /// This allows users to handle raw events that the library doesn't yet have types for
     on_unknown: ?Callback(json.Value) = null,
 } = .{},
 
+// Private fields
 _arena: std.heap.ArenaAllocator,
+/// The token used to login to a Discord account
 _token: []const u8,
+/// The underlying http client from `std.zig`
 _httpclient: http.Client,
 _headers: Request.Headers,
+/// The underlying ws client from `websocket.zig`
 _wsclient: ?ws.Client = null,
+/// Whether the client has sent a `Close` event
 _sent_close: bool = false,
-
 /// stack of websocket events
 _events: EventList,
+/// The interval at which to send heartbeat events
 _heartbeat_interval: ?i64 = null,
+/// Whether we are waiting for a heartbeat acknowledgement
 _awaiting_ack: bool = false,
 _seq: ?i64 = null,
 
@@ -95,19 +106,28 @@ pub fn init(allocator: std.mem.Allocator, config: Config) !Client {
     };
 }
 
+/// Deinitializes the bot, freeing all its memory
 pub fn deinit(self: *Client) void {
     self._httpclient.deinit();
     self._events.deinit();
     self._arena.deinit();
 }
 
-/// Connect to discord gateway and start listening for events
+/// Connect to discord gateway and start listening for events.
+/// This is the function that triggers the main event loop, and should only be called after
+/// initial bot setup, such as adding intents and callbacks, is done.
 pub fn connect(self: *Client) !void {
+    // Don't try to start a new connection if we already have a websocket client
     if (self._wsclient) |_| return;
+
     const gateway = try self.getGateway();
+    // ensure we are allowed to start a new session
     if (gateway.session_start_limit.remaining <= 0) return error.NoSessionsLeft;
+    // create the arena for the client to operate in; all of the clients allocations use this arena
     const allocator = self._arena.allocator();
 
+    // strip the first six characters (`wss://`) of the gateway url because websocket.zig expects
+    // a url without a protocol
     const host = gateway.url[6..];
     self._wsclient = try ws.connect(
         allocator,
@@ -119,15 +139,19 @@ pub fn connect(self: *Client) !void {
         },
     );
 
+    // set the api version (10) and the econding format (json)
     const options = "/?v=10&encoding=json";
     const headers = try std.fmt.allocPrint(allocator, "host: {s}\r\n", .{host});
     try self._wsclient.?.handshake(options, .{ .headers = headers });
 
+    // start the main event loop
     try self.eventLoop();
 }
 
 /// Internal use only
 /// Needs to be public for websocket.zig
+///
+/// handles the raw events and creates an `Event` struct to add to the Event stack
 pub fn handle(self: *Client, msg: ws.Message) !void {
     if (msg.type == .close) {
         if (msg.data.len < 2) return error.NoCloseCode;
@@ -164,10 +188,16 @@ pub fn handle(self: *Client, msg: ws.Message) !void {
 
 /// Internal use only
 /// Needs to be public for websocket.zig
+///
+/// Triggers when the client receives a close event
 pub fn close(self: *Client) void {
     self._sent_close = true;
 }
 
+/// Handle an event from the event stack
+/// When processing a ReceiveEvent, the function checks whether the client has a callback for that
+/// event, and calls it if it exists. When processing a SendEvent, the function calls the correlated
+/// send function
 fn processEvent(self: *Client, event: dys.events.Event) !void {
     switch (event) {
         .close => |e| {
@@ -211,15 +241,23 @@ fn processEvent(self: *Client, event: dys.events.Event) !void {
 
 /// main event loop, when this returns the gateway has been closed
 fn eventLoop(self: *Client) !void {
+    // start listening for events in a new thread, so the main thread can process them
     const thread = try self._wsclient.?.readLoopInNewThread(self);
     thread.detach();
 
+    // The number of heartbeats we have sent
     var beats: usize = 0;
+    // When the next heartbeat must be sent by, as a timestamp relative to `discord_epoch`
     var deadline: ?i64 = null;
 
+    // if we have sent a close event, either initiating a close or responding to a close event
+    // sent by discord, we want to stop the main loop and exit
     while (!self._sent_close) {
+        // go through each event and process them
         while (self._events.popOrNull()) |event| {
             self.processEvent(event) catch |err| {
+                // if we encounter an error while processing events we send discord a close event
+                // so we can safely exit
                 dys.log.err("closing because of error: {}", .{err});
                 if (!self._sent_close) try self.sendClose(.{
                     .code = .protocol_error,
@@ -228,6 +266,8 @@ fn eventLoop(self: *Client) !void {
                 });
                 return err;
             };
+            // if, after processing all the events, we did not recieve an expected heartbeat ack,
+            // we should assume the gateway should be closed as Discord has become unresponsive
             if (self._awaiting_ack) {
                 dys.log.err("did not receive heartbeat_ack", .{});
                 try self.sendClose(.{
@@ -238,6 +278,8 @@ fn eventLoop(self: *Client) !void {
             }
         }
 
+        // If we have started the heartbeat cycle, we must continue sending heartbeats at a set
+        // interval, until we send a close event
         if (self._heartbeat_interval) |interval| {
             if (deadline) |d| {
                 if (d <= std.time.milliTimestamp()) {
@@ -252,6 +294,7 @@ fn eventLoop(self: *Client) !void {
     }
 }
 
+/// Send a close event, triggering a the gateway to close
 fn sendClose(self: *Client, event: dys.events.Close) !void {
     dys.log.warn("gateway closed: {s}", .{event.reason});
     self._sent_close = true;
@@ -262,11 +305,13 @@ fn sendClose(self: *Client, event: dys.events.Close) !void {
     var code_bytes: [2]u8 = std.mem.toBytes(code_int);
     try self._wsclient.?.writeFrame(.close, &code_bytes);
 
+    // we want to reconnect if the close event told us to
     if (event.reconnect) {
         //TODO: reconnect
     }
 }
 
+/// send a GatewayEvent through the websocket client
 inline fn send(self: *Client, event: dys.GatewayEvent) !void {
     std.debug.assert(self._wsclient != null);
 
@@ -275,6 +320,7 @@ inline fn send(self: *Client, event: dys.GatewayEvent) !void {
     try self._wsclient.?.writeText(buf.buf[0..buf.pos]);
 }
 
+/// Send a heartbeat to discord, and tell the client we are now expecting an acknowledgement
 fn sendHeartbeat(self: *Client) !void {
     const event = dys.GatewayEvent{
         .op = @intFromEnum(dys.GatewayEvent.Opcode.heartbeat),
@@ -284,6 +330,7 @@ fn sendHeartbeat(self: *Client) !void {
     self._awaiting_ack = true;
 }
 
+/// Identify our client with Discord
 fn sendIdentify(self: *Client) !void {
     const id = dys.events.Identify{
         .token = self._token,
@@ -301,26 +348,36 @@ fn sendIdentify(self: *Client) !void {
 }
 
 // REST methods
+
+/// Sends a GET request to Discord's REST API
+/// T is the type for the response we expect to receive
 pub inline fn get(self: *Client, comptime T: type, endpoint: []const u8) !T {
     const allocator = self._arena.allocator();
 
+    // add the api endpoint to the base url
     const url: []u8 = try allocator.alloc(u8, base.len + endpoint.len);
     defer allocator.free(url);
     @memcpy(url[0..base.len], base);
     @memcpy(url[base.len..], endpoint);
 
+    // an array that holds the response and can be dynamically expanded
+    // to fit the entire response
     var response = std.ArrayList(u8).init(allocator);
     defer response.deinit();
 
+    // send the request
     const result = try self._httpclient.fetch(.{
         .location = .{ .url = url },
         .headers = self._headers,
         .response_storage = .{ .dynamic = &response },
     });
+    // assume something has gone wrong if the status is not ok or there is no response
     if (result.status != .ok or response.items.len == 0) {
         return error.UnableToReachEndpoint;
     }
 
+    // parse the response into the provide type, we can use the leaky variant because we have an
+    // arena allocator
     return try json.parseFromSliceLeaky(
         T,
         allocator,
@@ -329,9 +386,12 @@ pub inline fn get(self: *Client, comptime T: type, endpoint: []const u8) !T {
     );
 }
 
+/// Sends a POST request to Discord's REST API
+/// `T` is the type of the response, `data` is the data to POST
 pub inline fn post(self: *Client, comptime T: type, endpoint: []const u8, data: anytype) !T {
     const allocator = self._arena.allocator();
 
+    // add the api endpoint to the base url
     const url: []u8 = try allocator.alloc(u8, base.len + endpoint.len);
     defer allocator.free(url);
     @memcpy(url[0..base.len], base);
@@ -377,7 +437,6 @@ pub fn getCurrentUser(self: *Client) !dys.User {
 
 pub fn getUser(self: *Client, id: dys.Snowflake) !dys.User {
     const endpoint = try std.fmt.allocPrint(self._arena.allocator(), "/users/{d}", .{id.toId()});
-
     return self.get(dys.User, endpoint);
 }
 
