@@ -2,11 +2,11 @@ const std = @import("std");
 const json = std.json;
 const Allocator = std.mem.Allocator;
 
-pub usingnamespace @import("discord/channel.zig");
-pub usingnamespace @import("discord/emoji.zig");
-pub usingnamespace @import("discord/guild.zig");
-pub usingnamespace @import("discord/user.zig");
-pub usingnamespace @import("discord/gateway.zig");
+pub const channel = @import("discord/channel.zig");
+pub const emoji = @import("discord/emoji.zig");
+pub const guild = @import("discord/guild.zig");
+pub const user = @import("discord/user.zig");
+pub const gateway = @import("discord/gateway.zig");
 
 // the rest of this file is for unsorted types, they might be moved in the future
 

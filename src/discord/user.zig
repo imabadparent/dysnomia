@@ -4,7 +4,7 @@ const dys = @import("../dysnomia.zig");
 
 /// [User](https://discord.com/developers/docs/resources/user#user-object)
 pub const User = struct {
-    id: dys.Snowflake,
+    id: dys.discord.Snowflake,
     username: []const u8,
     discriminator: []const u8,
     global_name: ?[]const u8,
@@ -22,5 +22,5 @@ pub const User = struct {
     public_flags: u64 = 0, // TODO: Create enum for UserFlags
     avatar_decorations: ?[]const u8 = null,
     //// Only a valid value in mentions from messages received from the gateway
-    member: ?dys.GuildMember = null,
+    member: ?dys.discord.guild.GuildMember = null,
 };

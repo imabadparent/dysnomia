@@ -103,7 +103,7 @@ pub const Identify = struct {
 /// [Update Presence](https://discord.com/developers/docs/topics/gateway-events#update-presence)
 pub const UpdatePresence = struct {
     since: ?i64 = null,
-    activies: []dys.Activity = &.{},
+    activies: []dys.discord.Activity = &.{},
     status: enum {
         online,
         dnd,
@@ -124,12 +124,12 @@ pub const Hello = struct {
 /// [Ready](https://discord.com/developers/docs/topics/gateway-events#ready)
 pub const Ready = struct {
     v: i64,
-    user: dys.User,
-    guilds: []dys.UnavailableGuild,
+    user: dys.discord.user.User,
+    guilds: []dys.discord.guild.UnavailableGuild,
     session_id: []const u8,
     resume_gateway_url: []const u8,
     shard: [2]i64 = .{ 0, 0 },
-    application: dys.PartialApplication,
+    application: dys.discord.PartialApplication,
 };
 
 /// Used when a gateway event is a container for a REST type
@@ -168,5 +168,5 @@ fn Container(comptime T: type) type {
     };
 }
 
-pub const ChannelCreate = Container(dys.Channel);
-pub const MessageCreate = Container(dys.Message);
+pub const ChannelCreate = Container(dys.discord.channel.Channel);
+pub const MessageCreate = Container(dys.discord.channel.Message);

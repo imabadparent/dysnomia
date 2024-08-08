@@ -7,7 +7,7 @@ const json = std.json;
 
 const Client = @This();
 
-const EventList = std.ArrayList(dys.events.Event);
+const EventList = std.ArrayList(dys.discord.gateway.events.Event);
 
 fn Buffer(comptime size: comptime_int) type {
     return struct {
@@ -54,12 +54,12 @@ pub const Config = struct {
 const base = "https://discord.com/api/v10";
 
 /// Gateway intents, tells Discord what events we want to listen to and what information to send
-intents: dys.Intents = .{},
+intents: dys.discord.gateway.Intents = .{},
 callbacks: struct {
     /// Called when the client recieves the `Ready` event
-    on_ready: ?Callback(dys.events.Ready) = null,
+    on_ready: ?Callback(dys.discord.gateway.events.Ready) = null,
     /// Called when the client recieves the `MessageCreate` event
-    on_message_create: ?Callback(dys.events.MessageCreate) = null,
+    on_message_create: ?Callback(dys.discord.gateway.events.MessageCreate) = null,
     /// Called when the client recieves an event that is not yet covered by the library.
     /// This allows users to handle raw events that the library doesn't yet have types for
     on_unknown: ?Callback(json.Value) = null,
@@ -168,7 +168,7 @@ pub fn handle(self: *Client, msg: ws.Message) !void {
 
     const allocator = self._arena.allocator();
     const g_event = json.parseFromSliceLeaky(
-        dys.GatewayEvent,
+        dys.discord.gateway.GatewayEvent,
         allocator,
         msg.data,
         .{},
@@ -198,7 +198,7 @@ pub fn close(self: *Client) void {
 /// When processing a ReceiveEvent, the function checks whether the client has a callback for that
 /// event, and calls it if it exists. When processing a SendEvent, the function calls the correlated
 /// send function
-fn processEvent(self: *Client, event: dys.events.Event) !void {
+fn processEvent(self: *Client, event: dys.discord.gateway.events.Event) !void {
     switch (event) {
         .close => |e| {
             if (!self._sent_close) return self.sendClose(e) else return error.Closed;
@@ -295,7 +295,7 @@ fn eventLoop(self: *Client) !void {
 }
 
 /// Send a close event, triggering a the gateway to close
-fn sendClose(self: *Client, event: dys.events.Close) !void {
+fn sendClose(self: *Client, event: dys.discord.gateway.events.Close) !void {
     dys.log.warn("gateway closed: {s}", .{event.reason});
     self._sent_close = true;
     const code_int: u16 = if (@intFromEnum(event.code) <= std.math.maxInt(u16))
@@ -312,7 +312,7 @@ fn sendClose(self: *Client, event: dys.events.Close) !void {
 }
 
 /// send a GatewayEvent through the websocket client
-inline fn send(self: *Client, event: dys.GatewayEvent) !void {
+inline fn send(self: *Client, event: dys.discord.gateway.GatewayEvent) !void {
     std.debug.assert(self._wsclient != null);
 
     var buf = Buffer(4096){};
@@ -322,8 +322,8 @@ inline fn send(self: *Client, event: dys.GatewayEvent) !void {
 
 /// Send a heartbeat to discord, and tell the client we are now expecting an acknowledgement
 fn sendHeartbeat(self: *Client) !void {
-    const event = dys.GatewayEvent{
-        .op = @intFromEnum(dys.GatewayEvent.Opcode.heartbeat),
+    const event = dys.discord.gateway.GatewayEvent{
+        .op = @intFromEnum(dys.discord.gateway.GatewayEvent.Opcode.heartbeat),
         .d = .{ .heartbeat = self._seq },
     };
     try self.send(event);
@@ -332,7 +332,7 @@ fn sendHeartbeat(self: *Client) !void {
 
 /// Identify our client with Discord
 fn sendIdentify(self: *Client) !void {
-    const id = dys.events.Identify{
+    const id = dys.discord.gateway.events.Identify{
         .token = self._token,
         .properties = .{
             .os = &std.posix.uname().sysname,
@@ -340,8 +340,8 @@ fn sendIdentify(self: *Client) !void {
         .intents = @bitCast(self.intents),
     };
 
-    const event = dys.GatewayEvent{
-        .op = @intFromEnum(dys.GatewayEvent.Opcode.identify),
+    const event = dys.discord.gateway.GatewayEvent{
+        .op = @intFromEnum(dys.discord.gateway.GatewayEvent.Opcode.identify),
         .d = .{ .identify = id },
     };
     try self.send(event);
@@ -427,40 +427,40 @@ pub inline fn post(self: *Client, comptime T: type, endpoint: []const u8, data: 
     return json.parseFromTokenSourceLeaky(T, allocator, &reader, .{ .ignore_unknown_fields = true });
 }
 
-fn getGateway(self: *Client) !dys.Gateway {
-    return self.get(dys.Gateway, "/gateway/bot");
+fn getGateway(self: *Client) !dys.discord.gateway.Gateway {
+    return self.get(dys.discord.gateway.Gateway, "/gateway/bot");
 }
 
-pub fn getCurrentUser(self: *Client) !dys.User {
-    return try self.get(dys.User, "/users/@me");
+pub fn getCurrentUser(self: *Client) !dys.discord.user.User {
+    return try self.get(dys.discord.user.User, "/users/@me");
 }
 
-pub fn getUser(self: *Client, id: dys.Snowflake) !dys.User {
+pub fn getUser(self: *Client, id: dys.discord.Snowflake) !dys.discord.user.User {
     const endpoint = try std.fmt.allocPrint(self._arena.allocator(), "/users/{d}", .{id.toId()});
-    return self.get(dys.User, endpoint);
+    return self.get(dys.discord.user.User, endpoint);
 }
 
-pub fn getChannel(self: *Client, id: dys.Snowflake) !dys.Channel {
+pub fn getChannel(self: *Client, id: dys.discord.Snowflake) !dys.discord.channel.Channel {
     const endpoint = try std.fmt.allocPrint(self._arena.allocator(), "/channels/{d}", .{id.toId()});
 
-    return self.get(dys.Channel, endpoint);
+    return self.get(dys.discord.channel.Channel, endpoint);
 }
 
-pub fn listGuildEmoji(self: *Client, id: dys.Snowflake) ![]dys.Emoji {
+pub fn listGuildEmoji(self: *Client, id: dys.discord.Snowflake) ![]dys.discord.emoji.Emoji {
     const endpoint = try std.fmt.allocPrint(self._arena.allocator(), "/guilds/{d}/emojis", .{id.toId()});
-    return self.get([]dys.Emoji, endpoint);
+    return self.get([]dys.discord.emoji.Emoji, endpoint);
 }
 
 pub fn createMessage(
     self: *Client,
-    channel_id: dys.Snowflake,
-    msg: dys.CreateMessage,
-) !dys.Message {
+    channel_id: dys.discord.Snowflake,
+    msg: dys.discord.channel.CreateMessage,
+) !dys.discord.channel.Message {
     const endpoint = try std.fmt.allocPrint(
         self._arena.allocator(),
         "/channels/{d}/messages",
         .{channel_id.toId()},
     );
 
-    return self.post(dys.Message, endpoint, msg);
+    return self.post(dys.discord.channel.Message, endpoint, msg);
 }

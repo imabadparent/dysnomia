@@ -5,12 +5,12 @@ const config_path = "examples/config.json";
 
 /// Setup a listener for the Ready event
 /// All listeners take 2 arguments: the client that recieved the event, and the event itself
-fn onReady(_: *dys.Client, event: dys.events.Ready) !void {
+fn onReady(_: *dys.Client, event: dys.discord.gateway.events.Ready) !void {
     std.log.info("logged in as: {s}", .{event.user.username});
 }
 
 /// Setup a listener for the MessageCreate event so we can reply to "!ping" with "pong"
-fn onMessageCreate(self: *dys.Client, event: dys.events.MessageCreate) !void {
+fn onMessageCreate(self: *dys.Client, event: dys.discord.gateway.events.MessageCreate) !void {
     // Don't respond to bots
     if (event.payload.author.bot) return;
 

@@ -45,25 +45,25 @@ pub const Channel = struct {
         _padding2: u49,
     };
 
-    id: dys.Snowflake,
+    id: dys.discord.Snowflake,
     type: Type,
-    guild_id: ?dys.Snowflake = null,
+    guild_id: ?dys.discord.Snowflake = null,
     position: ?u64 = null,
     permission_overwrites: ?json.Value = null, // TODO: type should be `[]Overwrite`
     name: ?[]const u8 = null,
     topic: ?[]const u8 = null,
     nsfw: ?bool = null,
-    last_message_id: ?dys.Snowflake = null,
+    last_message_id: ?dys.discord.Snowflake = null,
     bitrate: ?u64 = null,
     user_limit: ?u64 = null,
     rate_limit_per_user: ?u64 = null,
-    recipients: ?[]dys.User = null,
+    recipients: ?[]dys.discord.user.User = null,
     icon: ?[]const u8 = null,
-    owner_id: ?dys.Snowflake = null,
-    application_id: ?dys.Snowflake = null,
+    owner_id: ?dys.discord.Snowflake = null,
+    application_id: ?dys.discord.Snowflake = null,
     managed: ?bool = null,
-    parent_id: ?dys.Snowflake = null,
-    last_pin_timestamp: ?dys.Timestamp = null,
+    parent_id: ?dys.discord.Snowflake = null,
+    last_pin_timestamp: ?dys.discord.Timestamp = null,
     rtc_region: ?[]const u8 = null,
     video_quality_mode: ?VideoQualityMode = null,
     message_count: ?u64 = null,
@@ -75,7 +75,7 @@ pub const Channel = struct {
     flags: ?u64 = null, // TODO: make this a packed struct
     total_message_sent: ?u64 = null,
     available_tags: ?json.Value = null, // TODO: type should be `[]Tag`
-    applied_tags: ?dys.Snowflake = null,
+    applied_tags: ?dys.discord.Snowflake = null,
     default_reaction_emoji: ?json.Value = null, // TODO: type should be `DefaultReaction`
     default_thread_rate_limit_per_user: ?u64 = null,
     default_sort_order: ?u64 = null, // TODO: make this an enum
@@ -165,27 +165,27 @@ pub const Message = struct {
         }
     };
 
-    id: dys.Snowflake,
-    channel_id: dys.Snowflake,
-    author: dys.User,
+    id: dys.discord.Snowflake,
+    channel_id: dys.discord.Snowflake,
+    author: dys.discord.user.User,
     content: []const u8,
-    timestamp: dys.Timestamp,
-    edited_timestamp: ?dys.Timestamp,
+    timestamp: dys.discord.Timestamp,
+    edited_timestamp: ?dys.discord.Timestamp,
     tts: bool,
     mention_everyone: bool,
-    mentions: []dys.User,
-    mention_roles: []dys.Snowflake,
+    mentions: []dys.discord.user.User,
+    mention_roles: []dys.discord.Snowflake,
     mention_channels: ?json.Value = null, // TODO: type should be `[]ChannelMention`
     attachments: json.Value, // TODO: type should be `[]Attachment`
     embeds: json.Value, // TODO: type should be `[]Embed`
     reactions: ?json.Value = null, // TODO: type should be `[]Reaction`
     nonce: ?Nonce = null,
     pinned: bool,
-    webhook_id: ?dys.Snowflake = null,
+    webhook_id: ?dys.discord.Snowflake = null,
     type: u64, // TODO: create enum for `MessageType`
     activity: ?json.Value = null, // TODO: type should be MessageActivity
     application: ?json.Value = null, // TODO: Figure what "partial application" means
-    application_id: ?dys.Snowflake = null,
+    application_id: ?dys.discord.Snowflake = null,
     message_reference: ?json.Value = null, // TODO: type should be `MessageReference`
     flags: ?Flags = null,
     referenced_message: ?*Message = null,
@@ -199,9 +199,9 @@ pub const Message = struct {
     resolved: ?json.Value = null, // TODO: type should be `Resolved`
 
     /// Only present in messages recieved from the gateway
-    guild_id: ?dys.Snowflake = null,
+    guild_id: ?dys.discord.Snowflake = null,
     //// Only present in messages recieved from the gateway
-    member: ?dys.GuildMember = null,
+    member: ?dys.discord.guild.GuildMember = null,
 };
 
 // Create types
@@ -217,7 +217,7 @@ pub const CreateMessage = struct {
     allowed_mentions: ?json.Value = null, // TODO: type should be `AllowedMention`
     message_reference: ?json.Value = null, // TODO: type should be `MessageReference`
     components: ?json.Value = null, // TODO: type should be `[]MessageComponent`
-    sticker_ids: ?dys.Snowflake = null,
+    sticker_ids: ?dys.discord.Snowflake = null,
     attachments: ?json.Value = null, // TODO: type should be []Attachment
     flags: ?Message.Flags = null,
 
