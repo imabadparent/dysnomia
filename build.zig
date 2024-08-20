@@ -41,6 +41,7 @@ fn buildExamples(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.
         .optimize = optimize,
     });
     ping.root_module.addImport("dysnomia", b.modules.get("dysnomia").?);
+    const ping_install = b.addInstallArtifact(ping, .{});
     const ping_step = b.step("ping", "build the ping example");
-    ping_step.dependOn(&ping.step);
+    ping_step.dependOn(&ping_install.step);
 }
