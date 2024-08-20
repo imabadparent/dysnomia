@@ -197,6 +197,8 @@ pub const Message = struct {
     position: ?u64 = null,
     role_subscription_data: ?json.Value = null, // TODO: type should be `RoleSubscriptionData`
     resolved: ?json.Value = null, // TODO: type should be `Resolved`
+    poll: ?json.Value = null, // TODO: type should be `Poll`
+    call: ?json.Value = null, // TODO: type should be `MessageCall`
 
     /// Only present in messages recieved from the gateway
     guild_id: ?dys.discord.Snowflake = null,
