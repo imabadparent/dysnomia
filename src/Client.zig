@@ -55,6 +55,7 @@ const base = "https://discord.com/api/v10";
 
 /// Gateway intents, tells Discord what events we want to listen to and what information to send
 intents: dys.discord.gateway.Intents = .{},
+/// The set of functions the client will call depending on what event was received
 callbacks: struct {
     /// Called when the client recieves the `Ready` event
     on_ready: ?Callback(dys.discord.gateway.events.Ready) = null,
