@@ -165,6 +165,13 @@ pub const Message = struct {
         }
     };
 
+    pub const ChannelMention = struct {
+        id: dys.discord.Snowflake,
+        guild_id: dys.discord.Snowflake,
+        type: Channel.Type,
+        name: []const u8,
+    };
+
     id: dys.discord.Snowflake,
     channel_id: dys.discord.Snowflake,
     author: dys.discord.user.User,
@@ -175,7 +182,7 @@ pub const Message = struct {
     mention_everyone: bool,
     mentions: []dys.discord.user.User,
     mention_roles: []dys.discord.Snowflake,
-    mention_channels: ?json.Value = null, // TODO: type should be `[]ChannelMention`
+    mention_channels: ?[]ChannelMention = null,
     attachments: json.Value, // TODO: type should be `[]Attachment`
     embeds: json.Value, // TODO: type should be `[]Embed`
     reactions: ?json.Value = null, // TODO: type should be `[]Reaction`
