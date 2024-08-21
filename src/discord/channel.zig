@@ -172,6 +172,55 @@ pub const Message = struct {
         name: []const u8,
     };
 
+    pub const Attachment = struct {
+        pub const Flags = packed struct(u64) {
+            _padding: u2 = 0,
+            is_remix: bool = false,
+            _padding2: u61 = 0,
+
+            pub fn jsonParse(
+                alloc: Allocator,
+                source: anytype,
+                options: json.ParseOptions,
+            ) json.ParseError(@TypeOf(source.*))!@This() {
+                const id = try json.innerParse(u64, alloc, source, options);
+                return @bitCast(id);
+            }
+
+            /// Interface function for `std.json`
+            pub fn jsonParseFromValue(
+                _: Allocator,
+                source: json.Value,
+                _: json.ParseOptions,
+            ) !@This() {
+                return switch (source) {
+                    .integer => @bitCast(source.integer),
+                    else => error.UnexpectedToken,
+                };
+            }
+
+            /// Interface function for `std.json`
+            pub fn jsonStringify(self: @This(), writer: anytype) !void {
+                try writer.print("\"{d}\"", .{@as(u64, @bitCast(self))});
+            }
+        };
+
+        id: dys.discord.Snowflake,
+        filename: []const u8,
+        title: ?[]const u8 = null,
+        description: ?[]const u8 = null,
+        content_type: ?[]const u8 = null,
+        size: i64,
+        url: []const u8,
+        proxy_url: []const u8,
+        height: ?i64 = null,
+        width: ?i64 = null,
+        ephemeral: ?bool = null,
+        duration_secs: ?f64 = null,
+        waveform: ?[]const u8 = null,
+        flags: ?@This().Flags = null,
+    };
+
     id: dys.discord.Snowflake,
     channel_id: dys.discord.Snowflake,
     author: dys.discord.user.User,
@@ -183,7 +232,7 @@ pub const Message = struct {
     mentions: []dys.discord.user.User,
     mention_roles: []dys.discord.Snowflake,
     mention_channels: ?[]ChannelMention = null,
-    attachments: json.Value, // TODO: type should be `[]Attachment`
+    attachments: []Attachment,
     embeds: json.Value, // TODO: type should be `[]Embed`
     reactions: ?json.Value = null, // TODO: type should be `[]Reaction`
     nonce: ?Nonce = null,
