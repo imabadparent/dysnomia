@@ -143,6 +143,8 @@ pub const Attachment = struct {
     flags: ?@This().Flags = null,
 };
 
+pub const Embed = @import("Embed.zig");
+
 id: dys.discord.Snowflake,
 channel_id: dys.discord.Snowflake,
 author: dys.discord.user.User,
@@ -155,7 +157,7 @@ mentions: []dys.discord.user.User,
 mention_roles: []dys.discord.Snowflake,
 mention_channels: ?[]ChannelMention = null,
 attachments: []Attachment,
-embeds: json.Value, // TODO: type should be `[]Embed`
+embeds: []Embed,
 reactions: ?json.Value = null, // TODO: type should be `[]Reaction`
 nonce: ?Nonce = null,
 pinned: bool,
