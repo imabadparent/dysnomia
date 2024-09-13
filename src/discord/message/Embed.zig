@@ -62,6 +62,20 @@ pub const Image = struct {
     width: ?u64 = null,
 };
 
+pub const Thumbnail = struct {
+    url: []const u8,
+    proxy_url: ?[]const u8 = null,
+    height: ?u64 = null,
+    width: ?u64 = null,
+};
+
+pub const Video = struct {
+    url: []const u8,
+    proxy_url: ?[]const u8 = null,
+    height: ?u64 = null,
+    width: ?u64 = null,
+};
+
 pub const Provider = struct {
     name: ?[]const u8 = null,
     url: ?[]const u8 = null,
@@ -74,6 +88,12 @@ pub const Author = struct {
     proxy_icon_url: ?[]const u8 = null,
 };
 
+pub const Field = struct {
+    name: []const u8,
+    value: []const u8,
+    @"inline": ?bool = null,
+};
+
 title: ?[]const u8 = null,
 type: ?Type = null,
 description: ?[]const u8 = null,
@@ -82,8 +102,8 @@ timestamp: ?dys.discord.Timestamp = null,
 color: ?dys.discord.Color = null,
 footer: ?Footer = null,
 image: ?Image = null,
-thumbnail: ?json.Value = null, // TODO: type should be ?Thumbnail
-video: ?json.Value = null, // TODO: type should be ?Video
+thumbnail: ?Thumbnail = null,
+video: ?Video = null,
 provider: ?Provider = null,
 author: ?Author = null,
-fields: ?[]json.Value = null, // TODO: type should be ?[]Field
+fields: ?[]Field = null,
