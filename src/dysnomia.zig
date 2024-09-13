@@ -6,7 +6,7 @@ pub const log = std.log.scoped(.dysnomia);
 /// it is logged in as, such as sending and receiving WebSocket events, and sending REST API calls
 pub const Client = @import("Client.zig");
 /// Contains all of the types related to working with the Discord API
-pub const discord = @import("types.zig");
+pub const discord = @import("discord/types.zig");
 
 /// Parses the config at `config_path` and returns a parsed json object. The caller is responsible
 /// for calling `deinit()` on this object.
@@ -31,5 +31,5 @@ pub fn parseConfig(
 }
 
 test {
-    std.testing.refAllDecls(@import("types.zig"));
+    std.testing.refAllDecls(@import("discord/types.zig"));
 }

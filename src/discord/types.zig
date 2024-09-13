@@ -2,11 +2,11 @@ const std = @import("std");
 const json = std.json;
 const Allocator = std.mem.Allocator;
 
-pub const channel = @import("discord/channel.zig");
-pub const emoji = @import("discord/emoji.zig");
-pub const guild = @import("discord/guild.zig");
-pub const user = @import("discord/user.zig");
-pub const gateway = @import("discord/gateway.zig");
+pub const channel = @import("channel.zig");
+pub const emoji = @import("emoji.zig");
+pub const guild = @import("guild.zig");
+pub const user = @import("user.zig");
+pub const gateway = @import("gateway.zig");
 
 // the rest of this file is for unsorted types, they might be moved in the future
 
@@ -67,7 +67,7 @@ pub const Snowflake = packed struct(u64) {
     }
 };
 
-/// A convience struct for operating on Discord's timestamp strings (Note that these are different
+/// A convenience struct for operating on Discord's timestamp strings (Note that these are different
 /// from the timestamps contained in Snowflakes)
 pub const Timestamp = struct {
     year: u32,
@@ -158,6 +158,53 @@ test "Timestamp.fromString" {
     try std.testing.expect(timestamp.second == 1);
     try std.testing.expect(timestamp.microsecond == 1000000);
 }
+
+/// A convenience struct for operating on Colors represented by discord as integers
+pub const Color = struct {
+    r: u8 = 0,
+    g: u8 = 0,
+    b: u8 = 0,
+
+    pub fn fromHex(hex: u24) Color {
+        return Color{
+            .r = @intCast(hex >> 16 & 0xFF),
+            .g = @intCast(hex >> 8 & 0xFF),
+            .b = @intCast(hex & 0xFF),
+        };
+    }
+
+    pub fn toHex(self: Color) u24 {
+        return (@as(u24, self.r) << 16) + (@as(u24, self.g) << 8) + @as(u24, self.b);
+    }
+
+    /// Interface function required for `std.json`
+    pub fn jsonParse(
+        alloc: Allocator,
+        source: anytype,
+        options: json.ParseOptions,
+    ) json.ParseError(@TypeOf(source.*))!Color {
+        const hex = try json.innerParse(u24, alloc, source, options);
+        return fromHex(hex);
+    }
+
+    /// Interface function required for `std.json`
+    pub fn jsonParseFromValue(
+        _: Allocator,
+        source: json.Value,
+        _: json.ParseOptions,
+    ) !Color {
+        return switch (source) {
+            .integer => fromHex(@as(u24, @intCast(source.integer))),
+            .string, .number_string => fromHex(try std.fmt.parseInt(u24, source.string, 0)),
+            else => error.UnexpectedToken,
+        };
+    }
+
+    /// Interface function required for `std.json`
+    pub fn jsonStringify(self: Color, writer: anytype) !void {
+        try writer.print("{d}", .{self.toHex()});
+    }
+};
 
 pub const PartialApplication = struct {
     id: Snowflake,
