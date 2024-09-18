@@ -45,7 +45,7 @@ pub const Type = enum {
 
     /// Interface function for `std.json`
     pub fn jsonStringify(self: Type, writer: anytype) !void {
-        writer.print("\"{s}\"", .{@tagName(self)});
+        try writer.print("\"{s}\"", .{@tagName(self)});
     }
 };
 
