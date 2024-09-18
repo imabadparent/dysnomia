@@ -38,7 +38,7 @@ fn Buffer(comptime size: comptime_int) type {
 
 /// A helper function for creating callback function types
 pub fn Callback(comptime T: type) type {
-    return *const fn (self: *Client, event: T) anyerror!void;
+    return *const fn (alloc: std.mem.Allocator, self: *Client, event: T) anyerror!void;
 }
 
 /// Config for the bot, can be parsed from json using `dysnomia.parseConfig("path/to/config");`
@@ -216,21 +216,21 @@ fn processEvent(self: *Client, event: dys.discord.gateway.events.Event) !void {
         },
         .ready => |e| {
             if (self.callbacks.on_ready) |on_ready| {
-                on_ready(self, e) catch |err| {
+                on_ready(self._arena.allocator(), self, e) catch |err| {
                     dys.log.err("on_ready callback failed with error: {}", .{err});
                 };
             }
         },
         .message_create => |e| {
             if (self.callbacks.on_message_create) |on_message_create| {
-                on_message_create(self, e) catch |err| {
+                on_message_create(self._arena.allocator(), self, e) catch |err| {
                     dys.log.err("on_message_create callback failed with error: {}", .{err});
                 };
             }
         },
         .unknown => |e| {
             if (self.callbacks.on_unknown) |on_unknown| {
-                on_unknown(self, e) catch |err| {
+                on_unknown(self._arena.allocator(), self, e) catch |err| {
                     dys.log.err("on_unknown callback failed with error: {}", .{err});
                 };
             }
