@@ -388,6 +388,7 @@ pub inline fn get(self: *Client, comptime T: type, endpoint: []const u8) !T {
 }
 
 /// Sends a POST request to Discord's REST API
+///
 /// `T` is the type of the response, `data` is the data to POST
 pub inline fn post(self: *Client, comptime T: type, endpoint: []const u8, data: anytype) !T {
     const allocator = self._arena.allocator();
