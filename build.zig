@@ -21,7 +21,8 @@ pub fn build(b: *std.Build) void {
     });
     dysnomia.addImport("websocket", websocket);
 
-    buildExamples(b, target, optimize);
+    buildExample("ping", b, target, optimize);
+    buildExample("embed", b, target, optimize);
 
     const lib_unit_tests = b.addTest(.{
         .root_source_file = b.path("src/dysnomia.zig"),
@@ -33,15 +34,20 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_lib_unit_tests.step);
 }
 
-fn buildExamples(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) void {
-    const ping = b.addExecutable(.{
-        .name = "ping",
-        .root_source_file = b.path("examples/ping.zig"),
+fn buildExample(
+    comptime name: []const u8,
+    b: *std.Build,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+) void {
+    const example = b.addExecutable(.{
+        .name = name,
+        .root_source_file = b.path("examples/" ++ name ++ ".zig"),
         .target = target,
         .optimize = optimize,
     });
-    ping.root_module.addImport("dysnomia", b.modules.get("dysnomia").?);
-    const ping_install = b.addInstallArtifact(ping, .{});
-    const ping_step = b.step("ping", "build the ping example");
-    ping_step.dependOn(&ping_install.step);
+    example.root_module.addImport("dysnomia", b.modules.get("dysnomia").?);
+    const example_install = b.addInstallArtifact(example, .{});
+    const example_step = b.step(name, "build the " ++ name ++ " example");
+    example_step.dependOn(&example_install.step);
 }
