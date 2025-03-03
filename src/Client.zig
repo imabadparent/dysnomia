@@ -66,7 +66,7 @@ callbacks: struct {
     on_unknown: ?Callback(json.Value) = null,
 } = .{},
 
-// Private fields
+// "Private" fields, do not directly access these unless you know what you're doing
 _arena: std.heap.ArenaAllocator,
 /// The token used to login to a Discord account
 _token: []const u8,
@@ -100,9 +100,13 @@ pub fn init(allocator: std.mem.Allocator, config: Config) !Client {
         ._arena = arena,
         ._token = tok,
         ._httpclient = http.Client{ .allocator = allocator },
-        ._headers = .{ .user_agent = .{
-            .override = "DiscordBot (https://github.com/imabadparent/dysnomia, 0.1.0)",
-        }, .authorization = .{ .override = tok }, .content_type = .{ .override = "application/json" } },
+        ._headers = .{
+            .user_agent = .{
+                .override = "DiscordBot (https://github.com/imabadparent/dysnomia, 0.1.0)",
+            },
+            .authorization = .{ .override = tok },
+            .content_type = .{ .override = "application/json" },
+        },
         ._events = EventList.init(allocator),
     };
 }
@@ -228,6 +232,7 @@ fn processEvent(self: *Client, event: dys.discord.gateway.events.Event) !void {
                 };
             }
         },
+        // allow the user to handle events the library can't yet
         .unknown => |e| {
             if (self.callbacks.on_unknown) |on_unknown| {
                 on_unknown(self._arena.allocator(), self, e) catch |err| {
