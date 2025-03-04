@@ -145,6 +145,20 @@ pub const Attachment = struct {
 
 pub const Embed = @import("Embed.zig");
 
+pub const Reaction = struct {
+    pub const CountDetails = struct {
+        burst: u64,
+        normal: u64,
+    };
+
+    count: u64,
+    count_details: CountDetails,
+    me: bool,
+    me_burst: bool,
+    emoji: dys.discord.emoji.Emoji,
+    burst_colors: []json.Value, // TODO: figure this out; the docs just say "array"
+};
+
 pub const Type = enum(u64) {
     default = 0,
     recipient_add = 1,
@@ -205,6 +219,17 @@ pub const Type = enum(u64) {
     }
 };
 
+pub const Activity = struct {
+    pub const Type = enum(u64) {
+        join = 1,
+        spectate = 2,
+        listen = 3,
+        join_request = 5,
+    };
+    type: Activity.Type,
+    party_id: ?[]const u8 = null,
+};
+
 id: dys.discord.Snowflake,
 channel_id: dys.discord.Snowflake,
 author: dys.discord.user.User,
@@ -218,12 +243,12 @@ mention_roles: []dys.discord.Snowflake,
 mention_channels: ?[]ChannelMention = null,
 attachments: []Attachment,
 embeds: []Embed,
-reactions: ?json.Value = null, // TODO: type should be `[]Reaction`
+reactions: ?[]Reaction = null,
 nonce: ?Nonce = null,
 pinned: bool,
 webhook_id: ?dys.discord.Snowflake = null,
 type: Type,
-activity: ?json.Value = null, // TODO: type should be MessageActivity
+activity: ?Activity = null,
 application: ?json.Value = null, // TODO: Figure what "partial application" means
 application_id: ?dys.discord.Snowflake = null,
 message_reference: ?json.Value = null, // TODO: type should be `MessageReference`
