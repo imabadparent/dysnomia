@@ -145,6 +145,66 @@ pub const Attachment = struct {
 
 pub const Embed = @import("Embed.zig");
 
+pub const Type = enum(u64) {
+    default = 0,
+    recipient_add = 1,
+    recipient_remove = 2,
+    call = 3,
+    channel_name_change = 4,
+    channel_icon_change = 5,
+    channel_pinned_message = 6,
+    user_join = 7,
+    guild_boost = 8,
+    guild_boost_tier_1 = 9,
+    guild_boost_tier_2 = 10,
+    guild_boost_tier_3 = 11,
+    channel_follow_add = 12,
+    guild_discovery_disqualified = 14,
+    guild_discovery_requalified = 15,
+    guild_discovery_grace_period_initial_warning = 16,
+    guild_discovery_grace_period_final_warning = 17,
+    thread_created = 18,
+    reply = 19,
+    chat_input_command = 20,
+    thread_starter_message = 21,
+    guild_invite_reminder = 22,
+    context_menu_command = 23,
+    auto_moderation_action = 24,
+    role_subscription_purchase = 25,
+    interaction_premium_upsell = 26,
+    stage_start = 27,
+    stage_end = 28,
+    stage_speaker = 29,
+    stage_topic = 31,
+    guild_application_premium_subscription = 32,
+    guild_incident_alert_mode_enabled = 36,
+    guild_incident_alert_mode_disabled = 37,
+    guild_incident_report_raid = 38,
+    guild_incident_report_false_alarm = 39,
+    purchase_notification = 44,
+    poll_result = 46,
+    _,
+
+    /// Whether this message type can be deleted
+    pub inline fn deletable(self: @This()) bool {
+        return switch (self) {
+            .recipient_add,
+            .recipient_remove,
+            .call,
+            .channel_name_change,
+            .channel_icon_change,
+            .thread_starter_message,
+            => false,
+            _ => true,
+        };
+    }
+
+    /// Interface function for `std.json`
+    pub fn jsonStringify(self: @This(), writer: anytype) !void {
+        return writer.print("{d}", .{@intFromEnum(self)});
+    }
+};
+
 id: dys.discord.Snowflake,
 channel_id: dys.discord.Snowflake,
 author: dys.discord.user.User,
@@ -162,7 +222,7 @@ reactions: ?json.Value = null, // TODO: type should be `[]Reaction`
 nonce: ?Nonce = null,
 pinned: bool,
 webhook_id: ?dys.discord.Snowflake = null,
-type: u64, // TODO: create enum for `MessageType`
+type: Type,
 activity: ?json.Value = null, // TODO: type should be MessageActivity
 application: ?json.Value = null, // TODO: Figure what "partial application" means
 application_id: ?dys.discord.Snowflake = null,
