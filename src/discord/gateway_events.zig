@@ -10,17 +10,19 @@ const dys = @import("../dysnomia.zig");
 /// but it does corespond with the `d` field of Discord's gateway event payload
 pub const Event = union(enum) {
     unknown: json.Value,
-    // recieve events
+
     heartbeat_ack,
     close: Close,
+
+    // recieve events
     hello: Hello,
     ready: Ready,
+    message_create: MessageCreate,
 
     // send events
     heartbeat: ?i64,
     identify: Identify,
     update_presence: UpdatePresence,
-    message_create: MessageCreate,
 
     // Interface function for `std.json`
     pub fn jsonStringify(self: Event, writer: anytype) !void {
