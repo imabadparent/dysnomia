@@ -20,7 +20,7 @@ fn onMessageCreate(_: std.mem.Allocator, self: *dys.Client, event: dys.discord.g
     const channel = try self.getChannel(msg.channel_id);
 
     // we only want to respond "pong" if the message starts with the "!ping" command
-    if (msg.type == .default and .mem.startsWith(u8, msg.content, "!ping")) {
+    if (msg.type == .default and std.mem.startsWith(u8, msg.content, "!ping")) {
         // log who send the message and in what channel
         std.debug.print("{s} sent a ping in #{?s}\n", .{ msg.author.username, channel.name });
 
