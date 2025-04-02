@@ -1,16 +1,17 @@
 const std = @import("std");
 const dys = @import("dysnomia");
+const events = dys.discord.gateway.events;
 
 const config_path = "examples/config.json";
 
 /// Setup a listener for the Ready event
 /// All listeners take 2 arguments: the client that recieved the event, and the event itself
-fn onReady(_: std.mem.Allocator, _: *dys.Client, event: dys.discord.gateway.events.Ready) !void {
+fn onReady(_: std.mem.Allocator, _: *dys.Client, event: events.Ready) !void {
     std.log.info("logged in as: {s}", .{event.user.username});
 }
 
 /// Setup a listener for the MessageCreate event so we can reply to "!ping" with "pong"
-fn onMessageCreate(_: std.mem.Allocator, self: *dys.Client, event: dys.discord.gateway.events.MessageCreate) !void {
+fn onMessageCreate(_: std.mem.Allocator, self: *dys.Client, event: events.MessageCreate) !void {
     // Don't respond to bots
     if (event.payload.author.bot) return;
 
