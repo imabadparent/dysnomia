@@ -5,13 +5,13 @@ const dys = @import("../dysnomia.zig");
 /// [Emoji](https://discord.com/developers/docs/resources/emoji#emoji-object-emoji-structure)
 pub const Emoji = struct {
     /// emoji id
-    id: ?dys.Snowflake,
+    id: ?dys.discord.Snowflake,
     /// emoji name (can be null only in reaction emoji objects)
     name: ?[]const u8,
     /// roles allowed to use this emoji
-    roles: ?[]dys.Snowflake = null,
-    /// user taht created this emoji
-    user: ?dys.User = null,
+    roles: ?[]dys.discord.Snowflake = null,
+    /// user that created this emoji
+    user: ?dys.discord.user.User = null,
     /// whether this emoji must be wrapped in colons
     require_colons: bool = true,
     /// whether this emoji is managed
