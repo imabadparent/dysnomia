@@ -17,6 +17,7 @@ pub const Event = union(enum) {
     // recieve events
     hello: Hello,
     ready: Ready,
+    channel_create: ChannelCreate,
     message_create: MessageCreate,
 
     // send events

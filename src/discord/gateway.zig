@@ -94,6 +94,7 @@ pub const GatewayEvent = struct {
             .dispatch => blk: {
                 if (result.t == null) return error.MissingField;
                 var event_str = result.t.?;
+                // convert to lower case
                 for (event_str, 0..) |c, i| {
                     if (c == '_') continue;
                     if (c >= 'A' and c <= 'Z') event_str[i] += 'a' - 'A';
@@ -101,6 +102,7 @@ pub const GatewayEvent = struct {
 
                 const tag_type = @typeInfo(events.Event).Union.tag_type.?;
                 const event = std.meta.stringToEnum(tag_type, event_str);
+                // we received an event we don't have a type for
                 if (event == null) break :blk events.Event{ .unknown = data };
                 switch (event.?) {
                     .ready => {
@@ -120,6 +122,15 @@ pub const GatewayEvent = struct {
                             .{ .ignore_unknown_fields = true },
                         );
                         break :blk events.Event{ .message_create = value };
+                    },
+                    .channel_create => {
+                        const value = try json.innerParseFromValue(
+                            events.ChannelCreate,
+                            alloc,
+                            data,
+                            .{ .ignore_unknown_fields = true },
+                        );
+                        break :blk events.Event{ .channel_create = value };
                     },
                     else => break :blk .{ .unknown = data },
                 }

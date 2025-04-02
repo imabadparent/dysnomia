@@ -61,6 +61,8 @@ callbacks: struct {
     on_ready: ?Callback(dys.discord.gateway.events.Ready) = null,
     /// Called when the client recieves the `MessageCreate` event
     on_message_create: ?Callback(dys.discord.gateway.events.MessageCreate) = null,
+    /// Called when the client recieves the `ChannelCreate` event
+    on_channel_create: ?Callback(dys.discord.gateway.events.ChannelCreate) = null,
     /// Called when the client recieves an event that is not yet covered by the library.
     /// This allows users to handle raw events that the library doesn't yet have types for
     on_unknown: ?Callback(json.Value) = null,
@@ -229,6 +231,14 @@ fn processEvent(self: *Client, event: dys.discord.gateway.events.Event) !void {
             if (self.callbacks.on_message_create) |on_message_create| {
                 on_message_create(self._arena.allocator(), self, e) catch |err| {
                     dys.log.err("on_message_create callback failed with error: {}", .{err});
+                };
+            }
+        },
+        .channel_create => |e| {
+            std.debug.print("test\n", .{});
+            if (self.callbacks.on_channel_create) |on_channel_create| {
+                on_channel_create(self._arena.allocator(), self, e) catch |err| {
+                    dys.log.err("on_channel_create callback failed with error: {}", .{err});
                 };
             }
         },
