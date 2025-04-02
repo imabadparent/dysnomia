@@ -23,6 +23,7 @@ pub fn build(b: *std.Build) void {
 
     buildExample("ping", b, target, optimize);
     buildExample("embed", b, target, optimize);
+    buildExample("channels", b, target, optimize);
 
     const lib_unit_tests = b.addTest(.{
         .root_source_file = b.path("src/dysnomia.zig"),
